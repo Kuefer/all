@@ -1,0 +1,70 @@
+#add-working-hours{
+  float:left;
+}
+#wrap-working-time{
+  border:1px solid lightgray;
+  width: 500px;
+}
+#add-working-hours th,
+#add-working-hours td{
+  border:0px solid lightgray;
+  padding:6px 10px;
+}
+
+#add-todo .title,
+#add-working-hours .title{
+  padding:10px;
+  border-bottom:1px solid lightgray;
+}
+#add-working-hours .form-select{
+  float:left;
+}
+
+
+
+#view-working-hours{
+  width: 500px;
+  margin-top: 20px;
+  padding:0;
+  border: 1px solid lightgray;
+  float:left;
+}
+#view-working-hours .table{
+  border:0px !important;
+}
+#view-working-hours .table tr th,
+#view-working-hours .table tr td{
+  border:none;
+}
+#view-working-hours .item-list .pager li{
+  padding: 2px;
+  margin: 2px;
+}
+#hours-fieldset p{
+  margin:0 0 10px 0;
+  padding:10px;
+  background-color:lightblue;
+}
+
+
+#add-todo{
+  float:right;
+}
+#wrap-todo{
+  width:430px;
+  border:1px solid lightgray;
+}
+#add-todo tr{
+  border:1px solid lightgray;
+}
+#add-todo th,
+#add-todo td{
+  border:0px solid lightgray;
+  padding:6px 10px;
+}
+
+
+#add-todo .form-item,
+#add-working-hours .form-item{
+  margin:0;
+}

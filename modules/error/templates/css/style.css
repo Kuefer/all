@@ -1,0 +1,13 @@
+.page-search .form-text {
+    max-width: 300px;
+    width: auto;
+}
+.page-search .form-item,
+.page-search .form-actions {
+    margin: 5px 0;
+}
+.page-search .settings-calendar,
+.page-search .list-caldav,
+.page-search .new-caldav {
+    margin: 10px 0;
+}

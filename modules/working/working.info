@@ -1,0 +1,8 @@
+name = Working Time
+type = Module
+description = Counter hours module.
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+

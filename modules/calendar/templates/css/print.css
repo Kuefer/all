@@ -1,0 +1,18 @@
+.header-wrap,
+.wrap-page-title,
+.wrap-today,
+.nav-back-forth,
+.nav-settings,
+.page-left,
+.page-right {
+    display:none;
+}
+.table-cell {
+  height: 30px;
+}
+.selectable {
+  height:2px;
+}
+.event {
+  border: 1px solid gray;
+}

@@ -1,0 +1,334 @@
+<?php
+function settings_init() {
+	drupal_add_css(drupal_get_path('module', 'settings') . '/templates/css/style.css', 'module', 'all', false);
+}
+//---------------------------------
+function settings_hook_info () {
+    return array('settings' => array('info' => t('Mathe-Nachhilfe settings Custom Module.')));
+}
+function settings_permission () {
+    return array('view settings page' => array('title' => t('Acces settings page')));
+}
+function settings_node_access($node, $op, $account) {
+    switch ($op) {
+        case 'view':
+            if (user_access('view settings page', $account)) {
+                return NODE_ACCESS_ALLOW;
+            }
+        break;
+        default:
+            return NODE_ACCESS_IGNORE;
+        break;
+    }
+}
+//----------------------------------------------------------------------------
+function settings_menu_callback ($args = false) {
+    $variables['args'] = $args;
+    $variables['general'] = drupal_get_form('general_form', $args);
+    $variables['caldav'] = drupal_get_form('caldav_form', $args);
+    #$variables['caldav_list'] = drupal_get_form('caldav_list', $args);
+    return theme('settings', $variables);
+}
+function settings_menu () {
+	$items['settings'] = array(
+		'title' => 'Calendar settings',
+		'page callback' => 'settings_menu_callback',
+		'page arguments' => array(1,2),
+		'access callback' => 'user_access',
+		'access arguments' => array('view settings page'),
+		'type' => MENU_LOCAL_TASK,
+	);
+	return $items;
+}
+//----------------------------------------------------------------------------
+function settings_theme ($existing, $type, $theme, $path) {
+	return array(
+		'settings' =>  array(
+			'template' => 'page',
+			'path' => drupal_get_path('module', 'settings') . '/templates/',
+		)
+	);
+}
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+function form_back ($form, &$form_state) {
+  drupal_goto('calendar/');
+}
+//----------------------------------------------------------------------------
+function general_form_submit ($form, &$form_state) {
+  global $user;
+  $fields = array();
+  $fields['scroll'] = $form_state['values']['settings']['scroll'];
+  $fields['mode'] = $form_state['values']['settings']['mode'];
+  $fields['start'] = $form_state['values']['settings']['start'];
+  $fields['duration'] = $form_state['values']['settings']['duration'];
+
+  $update = db_update('nachhilfe_settings');
+  $update->fields($fields);
+  $update->condition('user', $user->uid);
+  $update->execute();
+
+  drupal_add_js(array('calendar' => array(
+    'duration' => $fields['duration'],
+    'start' => $fields['start'],
+    'scroll' => $fields['scroll']
+  )), array('type' => 'setting'));
+
+  return drupal_goto('calendar/');
+}
+function general_form ($form, &$form_state) {
+  global $user;
+  list($date, $settings, $groups, $events) = calendar_session();
+
+  $start = $settings->start;
+  $duration = $settings->duration;
+  $form_state['date'] = $date;
+  $form['#tree'] = true;
+
+  $form['settings'] = array (
+    '#type' => 'fieldset',
+    '#title' => t('General'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#prefix' => '<div class="settings-calendar">',
+    '#suffix' => '</div>',
+  );
+  $form['settings']['mode'] = array(
+    '#type' => 'select',
+    '#title' => t('Calendar mode:'),
+    '#options' => array('Default', 'Hour select'),
+    '#default_value' => $settings->mode,
+    '#id' => 'settings-mode'
+  );
+  $form['settings']['start'] = array(
+    '#type' => 'select',
+    '#title' => t('Calendar hour start:'),
+    '#options' => drupal_map_assoc(range(0,23)),
+    '#default_value' => $settings->start,
+    '#states' => array(
+      'disabled' => array(
+        'select[name="settings[mode]"]' => array('value' => '0'),
+      ),
+    ),
+  );
+  $form['settings']['scroll'] = array(
+    '#type' => 'select',
+    '#title' => t('Scroll automatic:'),
+    '#options' => array('No', 'Yes'),
+    '#default_value' => $settings->scroll,
+    /*'#states' => array(
+      'disabled' => array(
+        'select[name="settings[mode]"]' => array('value' => '1'),
+      ),
+    ),*/
+  );
+  $form['settings']['duration'] = array(
+    '#type' => 'select',
+    '#title' => t('Default event duration:'),
+    '#default_value' => $settings->duration,
+    '#options' => array(
+      0 => t('No end time'),
+      15 => t('15 minutes'),
+      30 => t('30 minutes'),
+      45 => t('45 minutes'),
+      60 => t('60 minutes'),
+      90 => t('90 minutes'),
+      120 => t('120 minutes')
+    ),
+  );
+  $form['settings']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('general_form_submit'),
+    '#prefix' => '<br>',
+    '#suffix' => '&nbsp;&nbsp;',
+  );
+  $form['settings']['back'] = array(
+    '#type' => 'submit',
+    '#value' => t('Back'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('form_back'),
+  );
+
+  return $form;
+}
+//----------------------------------------------------------------------------
+function caldav_form_submit ($form, &$form_state) {
+  $caldav['server'] = $form_state['values']['server'];
+  $caldav['port'] = $form_state['values']['port'];
+  drupal_set_message($caldav['server'] .':'. $caldav['port'], 'error');
+}
+function caldav_form ($form, &$form_state) {
+  $form['new'] = array (
+    '#type' => 'fieldset',
+    '#title' => t('New Calendar account'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#prefix' => '<div class="new-caldav">',
+    '#suffix' => '</div>',
+  );
+  $form['new']['user'] = array(
+    '#title' => t('User'),
+    '#type' => 'textfield',
+    '#required' => true,
+    '#attributes' => array('placeholder' => 'name@example.com'),
+  );
+  $form['new']['password'] = array(
+    '#title' => t('Password'),
+    '#type' => 'password',
+    '#required' => true,
+    '#attributes' => array('placeholder' => 'Required'),
+  );
+  $form['new']['server'] = array(
+    '#title' => t('Server'),
+    '#type' => 'textfield',
+    '#required' => true,
+    '#size' => 24,
+    '#attributes' => array('placeholder' => 'example.com'),
+    '#prefix' => '<table><tr><td>',
+    '#suffix' => '</td>'
+  );
+  $form['new']['port'] = array(
+    '#title' => t('Port'),
+    '#type' => 'textfield',
+    '#required' => true,
+    '#size' => 4,
+    '#attributes' => array('placeholder' => '80'),
+    '#prefix' => '<td id="caldav-port">',
+    '#suffix' => '</td></tr></table>'
+  );
+  $form['new']['path'] = array(
+    '#title' => t('Path'),
+    '#type' => 'textfield',
+    '#required' => true,
+    '#attributes' => array('placeholder' => '/dav/principals/admin@example.org'),
+  );
+  $form['new']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('caldav_form_submit'),
+    '#prefix' => '<br>',
+    '#suffix' => '&nbsp;&nbsp;',
+  );
+  $form['new']['back'] = array(
+    '#type' => 'submit',
+    '#value' => t('Back'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('form_back'),
+  );
+  return $form;
+}
+//----------------------------------------------------------------------------
+/*
+function caldav_list_refresh ($form, &$form_state) {
+  drupal_goto('settings');
+}
+function caldav_list_delete ($form, &$form_state) {
+  $id = $form_state['values']['hidden'];
+  $disable = db_update('nachhilfe_caldav');
+  $disable->fields(array('enabled' => 0));
+  $disable->condition('id', $id);
+  $disable->execute();
+
+  $disable_groups = db_update('nachhilfe_groups');
+  $disable_groups->fields(array('disabled' => 1));
+  $disable_groups->condition('dav', $id);
+  return $disable_groups->execute();
+}
+function caldav_list ($form, &$form_state) {
+  global $user;
+  $groups = array();
+  $principals = array();
+  module_load_include('inc', 'calendar', 'include/class_extensions');
+  $pdo = Database::getConnection();
+  $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+
+  $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+
+  $query = db_select('nachhilfe_roles', 'nr');
+  $query->fields('nr');
+  $query->condition('nr.uid', $user->uid);
+  $nr = $query->execute()->fetch();
+  $employees = db_select('users','u');
+  $employees->leftJoin('nachhilfe_employees', 'e', 'e.uid = u.uid');
+  $employees->leftJoin('nachhilfe_roles', 'r', 'r.uid = u.uid');
+  $employees->leftJoin('users_roles', 'ur', 'ur.uid = u.uid');
+  $employees->addField('u','mail','mail');
+  $employees->condition('r.franchisetaker', $nr->franchisetaker);
+  $employees->condition('ur.rid', array(4,6), 'IN');
+  $employees->condition('u.status', 1, '=');
+  $employees = $employees->execute()->fetchAll();
+
+  foreach($employees as $employee){
+    $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
+    array_push($principals, $calendars);
+  }
+
+  foreach($principals as $i => $calendars){
+    foreach($calendars as $y => $calendar){
+      $groups[$i][$y] = (object) array(
+        'id' => $calendar['id'][0],
+        'order' => $calendar['{http://apple.com/ns/ical/}calendar-order'],
+        'color' => $calendar['{http://apple.com/ns/ical/}calendar-color'],
+        'name' => $calendar['{DAV:}displayname'],
+        'visible' => 1
+      );
+    }
+  }
+
+  @sort($groups, SORT_NUMERIC);
+  #dpm($groups);
+  $acc = array();
+  $form['callist'] = array (
+    '#type' => 'fieldset',
+    '#title' => t('Calendar Accounts'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#prefix' => '<div class="list-caldav">',
+    '#suffix' => '</div>',
+  );
+  if(empty($acc)){
+    $form['callist']['empty']= array(
+      '#markup' => t('No content available.')
+    );
+  } else {
+    foreach ($acc as $i => $dav) {
+
+      $form['callist']['acc'][$dav->id]['delete'] = array(
+        '#type' => 'submit',
+        '#value' => t('Delete'),
+        '#attributes' => array('class' => array('delete', 'submit-save')),
+        '#submit' => array('caldav_list_delete'),
+      );
+      $form['callist']['acc'][$dav->id]['delete']['hidden'] = array(
+        '#type' => 'textfield',
+        '#maxlength' => 120,
+        '#value' => $dav->id,
+      );
+      $form['callist']['acc'][$dav->id]['name'] = array(
+        #'#markup' => 'http://' . $dav->name . ':******@' . $dav->server . ':' . $dav->port . '/' . $dav->path .'<br>'
+        '#markup' => 'http://' . $dav->name . ':******@' . $dav->server . ':' . $dav->port . '<br>'
+      );
+    }
+  }
+
+  $form['callist']['refresh'] = array(
+    '#type' => 'submit',
+    '#value' => t('Refresh'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('caldav_list_refresh'),
+    '#prefix' => '<br><br>',
+  );
+  return $form;
+//----------------------------------------------------
+}
+*/
+//----------------------------------------------------------------------------
+function format_hours ($hours) {
+  $new = array();
+  foreach($hours as $hour)
+    array_push($new, sprintf("%02d", $hour));
+  return $new;
+}

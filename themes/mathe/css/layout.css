@@ -1,0 +1,136 @@
+@font-face{
+  font-family:'arapey';
+  src:url(../fonts/arapey.ttf);
+}
+@font-face{
+  font-family:'indie_flower';
+  src:url(../fonts/indie_flower.ttf);
+}
+@font-face{
+  font-family:'marvel';
+  src:url(../fonts/marvel.ttf);
+}
+@font-face{
+  font-family:'news_cycle';
+  src:url(../fonts/news_cycle.ttf);
+}
+@font-face{
+  font-family:'open_sans_cond';
+  src:url(../fonts/open_sans_cond.ttf);
+}
+@font-face{
+  font-family:'oswald_extra_light';
+  src:url(../fonts/oswald_extra_light.ttf);
+}
+@font-face{
+  font-family:'pathway_gothic_one';
+  src:url(../fonts/pathway_gothic_one.ttf);
+}
+@font-face{
+  font-family:'pontano_sans';
+  src:url(../fonts/pontano_sans.ttf);
+}
+@font-face{
+  font-family:'pt_sans_narrow_web';
+  src:url(../fonts/pt_sans_narrow_web.ttf);
+}
+@font-face{
+  font-family:'yanone_kaffeesatz';
+  src:url(../fonts/yanone_kaffeesatz.ttf);
+}
+@font-face{
+  font-family:'yantramanav';
+  src:url(../fonts/yantramanav.ttf);
+}
+@font-face{
+  font-family:'noto';
+  src:url(../fonts/noto.ttf);
+}
+@font-face{
+  font-family:'playfair';
+  src:url(../fonts/playfair.ttf);
+}
+@font-face{
+  font-family:'fira';
+  src:url(../fonts/fira.ttf);
+}
+@font-face{
+  font-family:'roboto';
+  src:url(../fonts/roboto.ttf);
+}
+@font-face{
+  font-family:'sansita';
+  src:url(../fonts/sansita.ttf);
+}
+@font-face{
+  src:url(https://fonts.googleapis.com/css?family=PT+Sans);
+}
+@media (min-width:320px)  { /* smartphones, iPhone, portrait 480x320 phones */ }
+@media (min-width:481px)  { /* portrait e-readers (Nook/Kindle), smaller tablets @ 600 or @ 640 wide. */ }
+@media (min-width:641px)  { /* portrait tablets, portrait iPad, landscape e-readers, landscape 800x480 or 854x480 phones */ }
+@media (min-width:961px)  { /* tablet, landscape iPad, lo-res laptops ands desktops */ }
+@media (min-width:1025px) { /* big landscape tablets, laptops, and desktops */ }
+@media (min-width:1281px) { /* hi-res laptops and desktops */ }
+@media (max-width:1025px) { /*@media (min-width:961px) {*/ }
+body{
+  font-family:'fira';
+  font-size:1em;
+  -webkit-font-smoothing:antialiased;
+  -moz-font-smoothing:antialiased;
+  -o-font-smoothing:antialiased;
+  font-smoothing:antialiased;
+  font-weight:100;
+  color:#363636 !important;
+}
+header,
+main,
+footer{
+  float:left;
+  width:100%;
+  clear:both;
+  margin:0px;
+}
+header .container,
+main .container,
+footer .container{
+  width:960px !important;
+  margin:0 auto;
+  border:0px solid lightgray;
+  overflow:auto;
+}
+main .container,
+main .welcome,
+footer .container{
+  padding:10px;
+}
+main .container,
+main .welcome{
+  -webkit-box-shadow: 0px 10px 7px -5px rgba(0,0,0,0.75);
+  -moz-box-shadow: 0px 10px 7px -5px rgba(0,0,0,0.75);
+  box-shadow: 0px 10px 7px -5px rgba(0,0,0,0.75);
+  margin:20px auto !important;
+}
+main .welcome{
+  width:340px!important;
+  margin:0 auto;
+  padding:10px;
+  border:0px solid lightgray;
+}
+main{
+  padding-bottom:20px;
+}
+.region-sidebar-left{
+  float: left;
+  width: 220px;
+  margin-right:10px;
+  font-size:0.9em;
+}
+.region-sidebar-right{
+  float: right;
+  width: 265px;
+  margin-left:10px;
+  font-size:0.9em;
+}
+.region-sidebar-right .block{
+  display:none;
+}

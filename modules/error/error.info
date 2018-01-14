@@ -1,0 +1,9 @@
+name = Error
+type = Module
+description = Errors redirect module
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+files[] = error.module
+

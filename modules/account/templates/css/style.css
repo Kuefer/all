@@ -1,0 +1,89 @@
+/* General */
+#wrap-create-student {
+    max-width:940px;
+}
+#wrap-create-student,
+#wrap-create-student tr,
+#wrap-create-student th,
+#wrap-create-student td {
+    border:0px solid silver;
+    margin:0px !important;
+    padding:0px !important;
+}
+#wrap-create-student td {
+    padding-bottom: 10px !important;
+}
+#wrap-create-student th {}
+#wrap-create-student .form-select {
+    margin: 0px !important;
+    float:left;
+}
+#wrap-create-student .form-item {
+    margin: 0px;
+}
+#wrap-create-student .form-item label {
+  margin-top:0;
+}
+#wrap-create-student .form-text {
+    vertical-align: bottom;
+    color: black;
+    margin: 0px;
+    float: left;
+}
+#wrap-create-student #button_add_phone,
+#wrap-create-student #button_add_email {
+  margin-top: 0px;
+}
+#wrap-create-student .page-content {
+    padding: 20px !important;
+}
+#wrap-create-student .form-required {
+    color:firebrick;
+}
+#wrap-create-student .float-left {
+    float: left;
+}
+#wrap-create-student .slash {
+    margin-top: 10px;
+}
+#wrap-create-student .row-multiple-fields div{
+  float:left;
+}
+#wrap-create-student .row-multiple-fields .submit-remove{
+  float:left;
+}
+#wrap-create-student .row-multiple-fields select{
+  width:125px;
+}
+#wrap-create-student .row-multiple-fields .form-type-select{
+  margin-right:10px;
+}
+/* end General*/
+
+.row-multiple-fields label{
+  display:none;
+}
+
+#wrap-create-student .form-item-students-name-firstname,
+#wrap-create-student .form-item-students-name-lastname,
+#wrap-create-student .form-item-students-student-name-firstname,
+#wrap-create-student .form-item-students-student-name-lastname,
+#wrap-create-student .form-item-students-address-street,
+#wrap-create-student .form-item-students-address-city,
+#wrap-create-student .form-item-students-address-zip,
+#wrap-create-student .form-item-students-others-class,
+#wrap-create-student .form-item-students-others-birthday,
+#wrap-create-student .form-item-students-others-gender
+{
+  float:left !important;
+}
+
+#wrap-create-student .form-item-students-name-lastname,
+#wrap-create-student .form-item-students-student-name-lastname,
+#wrap-create-student .form-item-students-address-city,
+#wrap-create-student .form-item-students-address-zip,
+#wrap-create-student .form-item-students-others-birthday,
+#wrap-create-student .form-item-students-others-gender
+{
+  margin-left:20px !important;
+}

@@ -1,0 +1,55 @@
+<?php
+function general_init() {}
+//---------------------------------
+function general_hook_info () {
+    return array('general' => array('info' => t('Mathe-Nachhilfe general Module.')));
+}
+function general_permission () {
+    return array('view general page' => array('title' => t('Acces general page')));
+}
+function general_node_access($op, $node, $account) {
+  switch ($op) {
+    case 'view':
+      if (user_access('view general page', $account))
+        return NODE_ACCESS_ALLOW;
+    break;
+    default:
+      return NODE_ACCESS_IGNORE;
+    break;
+  }
+}
+//----------------------------------------------------------------------------
+function general_redirect_403($form, &$form_states) {
+  #drupal_goto('user/login');
+
+  return drupal_set_message("Access Denied: Please Login");
+  global $user;
+  if ($user->uid) { // this user is already logged in
+    print "Access Denied: You do not have access to this page.";
+  } else {
+    drupal_set_message("Access Denied: Please Login");
+    $dest = drupal_get_destination();
+    drupal_goto('user/login', $dest);
+  }
+}
+
+function general_redirect_404($form, &$form_states) {
+  #drupal_goto('user/login');
+
+  return drupal_set_message("Access Denied: Please Login");
+  return TRUE;
+}
+//----------------------------------------------------------------------------
+ function general_menu() {
+  $items['acces-denied'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => 'general_redirect_403',
+    'type' => MENU_CALLBACK,
+  );
+  $items['not-found'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => 'general_redirect_403',
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}

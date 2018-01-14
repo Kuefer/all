@@ -1,0 +1,493 @@
+<?php
+function mathe_profile_init() {
+  drupal_add_css(drupal_get_path('module', 'mathe_profile') . '/templates/css/style.css', 'module', 'all', false);
+}
+//---------------------------------
+function mathe_profile_permission () {
+  return array('view profile page' => array('title' => t('Acces profile page')));
+}
+function mathe_profile_node_access($node, $op, $account) {
+  switch ($op) {
+    case 'view':
+      if (user_access('view profile page', $account)) {
+        return NODE_ACCESS_ALLOW;
+      }
+    break;
+    default:
+      return NODE_ACCESS_IGNORE;
+    break;
+  }
+}
+//----------------------------------------------------------------------------
+function user_info_edit_submit($node, &$form_state){
+  $args = $form_state['build_info']['args'][0];
+
+  if(in_array(7, $form_state['rid'])) {
+    return drupal_goto('/students/create/' . $args);
+  }
+  else { #employees/francisetakers
+    return drupal_goto('/employees/create/' . $args);
+  }
+}
+function user_info($node, &$form_state){
+  global $user;
+  $rid = array();
+  $args = $form_state['build_info']['args'][0];
+
+  $query = db_select('users','u');
+  $query->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+  $query->leftJoin('nachhilfe_roles', 'nr', 'u.uid = nr.uid');
+  $query->fields('u', array('uid'));
+  $query->fields('ur', array('rid'));
+  $query->fields('nr', array('franchisetaker'));
+  $query->condition('u.uid', $args);
+  $existent = $query->execute()->fetchAll();
+
+  foreach($existent as $role) in_array($role->rid, array(4,5,6,7)) ? array_push($rid, $role->rid) : '';
+
+  $form_state['rid'] = $rid;
+  #dpm($form_state['rid']);
+  #dpm($existent);
+
+  if(in_array(7, $rid)) {
+    $query = db_select('users','u');
+    $query->leftJoin('nachhilfe_students', 'ns', 'u.uid = ns.uid');
+    $query->leftJoin('nachhilfe_roles', 'nr', 'u.uid = nr.uid');
+    $query->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+    $query->fields('u', array('uid'));
+    $query->fields('ns');
+    $query->fields('nr', array('franchisetaker'));
+    $query->fields('ur', array('rid'));
+    $query->condition('u.uid', $args);
+    $info = $query->execute()->fetch();
+  }
+  else { #employees/francisetakers
+    $query = db_select('users','u');
+    $query->leftJoin('nachhilfe_employees', 'ne', 'u.uid = ne.uid');
+    $query->leftJoin('nachhilfe_roles', 'nr', 'u.uid = nr.uid');
+    $query->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+    $query->fields('u', array('uid'));
+    $query->fields('ne');
+    $query->fields('nr', array('franchisetaker'));
+    $query->fields('ur', array('rid'));
+    $query->condition('u.uid', $args);
+    $info = $query->execute()->fetch();
+  }
+
+  $query = db_select('users','u');
+  $query->leftJoin('nachhilfe_phones', 'np', 'u.uid = np.uid');
+  $query->fields('np', array('number'));
+  $query->condition('u.uid', $args);
+  $query->condition('np.disabled', 0);
+  $phones = $query->execute()->fetchAllKeyed(0,0);
+
+  $query = db_select('users','u');
+  $query->leftJoin('nachhilfe_mails', 'nm', 'u.uid = nm.uid');
+  $query->fields('nm', array('mail'));
+  $query->condition('u.uid', $args);
+  $query->condition('nm.disabled', 0);
+  $emails = $query->execute()->fetchAllKeyed(0,0);
+
+  $roles = array(3=> t('Administrator'),4 => t('Franchisetaker'),5 => t('Secretary'),6 => t('Teacher'), 7 =>t('Student'));
+
+  $markup = '<p><span class="grey">Firstname:</span> ' . $info->firstname
+    . '&nbsp;&nbsp;<span class="grey">Lastname:</span> ' . $info->lastname . '</p><br>'
+    . (($rid == 7) ? '<p><span class="grey">Student firstname:</span> ' . $info->student_firstname . '</p><br>' :'')
+    . (($rid == 7) ? '<p><span class="grey">Student lastname:</span> ' . $info->student_lastname . '</p><br>' :'')
+    . '<p><span class="grey">Street:</span> ' . $info->street
+    . '&nbsp;&nbsp;<span class="grey">City:</span> ' . $info->city
+    . '&nbsp;&nbsp;<span class="grey">ZIP:</span> ' . $info->zip . '</p><br>'
+    . '<p><span class="grey">Gender:</span> ' . (isset($info->gender) ? $info->gender == 0 ? 'männlich':'weiblich' : '') . '</p><br>'
+    . '<p><span class="grey">Role:</span> ' . (isset($info->rid) ? $roles[$info->rid] : '') . '</p><br>'
+    . '<p><span class="grey">Birthday:</span> ' . (isset($info->birthday) ? date('Y/m/d', $info->birthday) :'') . '</p><br>';
+
+  $markup .= '<p><span class="grey">Phone:</span></p><br>';
+  foreach($phones as $phone) $markup .= '<p>&nbsp;&nbsp;' . implode(' - ',str_split($phone, 4)) . '</p><br>';
+  $markup .= '<p><span class="grey">Email:</span></p><br>';
+  foreach($emails as $email) $markup .= '<p>&nbsp;&nbsp;<a href="mailto:' . $email . '">' . $email . '</a></p><br>';
+
+  $form['general'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('General info'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#prefix' => '<div class="wrap-fieldset">',
+    '#suffix' => '</div>'
+  );
+  $form['general']['info'] = array (
+    '#type' => 'markup',
+    '#markup' => '<div class="padding-10">' . $markup . '</div>'
+  );
+
+  $form['general']['edit'] = array (
+    '#type' => 'submit',
+    '#value' => t('Edit'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('user_info_edit_submit'),
+  );
+
+  return $form;
+}
+//----------------------------------------------------------------------------
+function edit_password_submit($node, &$form_state){
+  require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
+  $uid = $form_state['build_info']['args'][0];
+  $pass = user_hash_password($form_state['values']['field']);
+
+  try{
+    $change = db_update('users');
+    $change->fields(array('pass' =>$pass));
+    $change->condition('uid', $uid);
+    $change->execute();
+    return drupal_set_message(t('Password successfully change.'), 'status');
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+}
+function edit_password($node, &$form_state){
+  $args = $form_state['build_info']['args'][0];
+
+  $form['password'] = array (
+    '#type' => 'fieldset',
+    '#title' =>  t('Change password'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#prefix' => '<div class="wrap-fieldset">',
+    '#suffix' => '</div>',
+  );
+
+  $form['password']['repeat_password'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['password']['repeat_password']['field'] = array(
+      '#title' => t('Repeat new password'),
+      '#type' => 'password_confirm',
+      #'#required' => true,
+      '#size' => 36,
+      '#prefix' => '<td>',
+      '#suffix' => '</td>',
+      '#attributes' => array('placeholder' => t('*****')),
+  );
+
+  $form['password']['row'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['password']['row']['button'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save'),
+      '#prefix' => '<td>',
+      '#suffix' => '</td>',
+      '#attributes' => array('class' => array('submit-save')),
+      '#submit' => array('edit_password_submit'),
+  );
+  return $form;
+}
+function edit_employee($node, &$form_state){
+  $args = $form_state['build_info']['args'][0];
+  $node = drupal_get_form('employees_create_form', $args);
+
+  $form['edit'] = array (
+    '#type' => 'fieldset',
+    '#title' =>  t('Edit'),
+    '#collapsible' => true,
+    '#collapsed' => true,
+    '#prefix' => '<div class="wrap-fieldset">',
+    '#suffix' => '</div>',
+  );
+  $form['edit']['info'] = array (
+    '#type' => 'markup',
+    '#markup' => '<div class="padding-10">' . drupal_render($node) . '</div>'
+  );
+
+  return $form;
+}
+//----------------------------------------------------------------------------
+function profile_draw_chart ($node, &$form_state) {
+  global $user;
+
+  #get target hour
+  $student = $form_state['build_info']['args'][0];
+  $query = db_select('nachhilfe_hour_target', 'ht');
+  $query->leftJoin('users', 'u', 'u.uid = ht.student');
+  $query->fields('ht');
+  $query->condition('ht.student', $student);
+  $result = $query->execute()->fetch();
+
+  if(isset($result->target_mark) && $result->target_mark !== 0.00)
+  $target = $result->target_mark;
+  else $target = null;
+  $months = array();
+
+  $query = db_query('SELECT nm.*
+    FROM
+        nachhilfe_hour_mark as nm
+    LEFT OUTER JOIN
+        nachhilfe_roles as nr ON nr.uid = nm.teacher
+    WHERE
+        (nm.teacher = :user OR nr.franchisetaker = :user)
+    AND
+        nm.student = :student
+     ORDER BY nm.id DESC;',
+    array(':student' => $form_state['build_info']['args'][0],
+      ':user' => $user->uid)
+  );
+  $marks = $query->fetchAll();
+
+  $statistics = '';
+  $bg = '';
+  $target_line = '';
+
+  $schulaufg = array();
+  $exe = array();
+  $zeug = array();
+
+  //left note from 1 to 6
+  for($i=1; $i<=6; $i++) {
+    $c = (($i-1) * 47) + 13;
+    $bg .= '<text x="5" y="' . $c . '">' . $i . '</text>';
+  }
+  //bg lines horizontal
+  for($i=0; $i<6; $i++) {
+    $c = (($i) * 50) + 10;
+    $bg .= '<line stroke-dasharray="10, 5"
+    x1="20" y1="' . $c . '"
+    x2="475" y2="' . $c . '"
+    stroke="#000" stroke-width="0.1"/>';
+    #points="20,' . $i * 40 . ' 470,' . $i * 40 . '"
+  }
+
+  //bottom date from september to iuni
+  for($i=0; $i <10; $i++) {
+    $a = $i == 0? 23: ($i *44) + 23;
+    $date = date('n') < 9 ? date('m/y', strtotime((date('9/y') . '-1 year') . '+' . $i . ' month')):
+    date('m/y', strtotime(date('m/y') . '+' . $i . ' month'));
+    $bg .= '<text x="' . $a . '" y="280">' . $date . '</text>';
+
+    #bg lines vertical
+    /*$a = $i == 0? 20: ($i * 44) + 20;
+    $bg .= '<line stroke-dasharray="10, 5" x1="' . $a . '" y1="0" x2="' . $a . '" y2="269"
+    stroke="#000" stroke-width="0.3"/>';*/
+  }
+
+  #target line
+  if($target !== null){
+    $i = (($target) * 50) - 40;
+    $bg .= '<line
+      x1="20" y1="' . $i . '"
+      x2="475" y2="' . $i . '"
+      stroke="#FFA500" stroke-width="1"/>';
+  }
+
+  $s_months = array(9=>0,10=>1,11=>2,12=>3,1=>4,2=>5,3=>6,4=>7,5=>8,6=>9);
+
+  #marks chart
+  foreach($marks as $i => $mark){
+    switch ($mark->typ) {
+      case '0':
+        array_push($schulaufg, $mark);
+        break;
+      case '1':
+        array_push($exe, $mark);
+        break;
+      case '2':
+        array_push($zeug, $mark);
+        break;
+    }
+  }
+
+  foreach($schulaufg as $i => $mark){
+    #circles points
+    $cx = date('n', $mark->date);
+    $cxd = date('j', $mark->date);
+    $cx = 15 + $s_months[$cx] * 44 + ($cxd * (44/31));
+    $cy = $schulaufg[$i]->mark * 50 - 40;
+    $statistics .= '<circle cx="' . $cx . '" cy="' . $cy . '" r="6" fill="#FF6666"  title="' . date('y/m/d', $mark->date) . '"/>';
+    #end circles points
+    #lines between points/marks
+    if($i > 0){
+      $x1 = date('n', $schulaufg[$i-1]->date);
+      $x1d = date('j', $schulaufg[$i-1]->date);
+      $x1 = 15 + $s_months[$x1] * 44 + ($x1d * (44/31));
+      $y1 = $schulaufg[$i-1]->mark * 50 - 40;
+      $x2 = date('n', $schulaufg[$i]->date);
+      $x2d = date('j', $schulaufg[$i]->date);
+      $x2 = 15 + $s_months[$x2] * 44 + ($x2d * (44/31));
+      $y2 = $schulaufg[$i]->mark * 50 - 40;
+      $statistics .= '<line
+        line x1="' . $x1 . '" y1="' . $y1 . '" x2="' . $x2 . '" y2="' . $y2 . '"
+        stroke-width="1" stroke="#FF6666" />';
+    }
+    #end lines between points/marks
+  }
+  foreach($exe as $i => $mark){
+    #circles points
+    $cx = date('n', $mark->date);
+    $cxd = date('j', $mark->date);
+    $cx = 20 + $s_months[$cx] * 44 + ($cxd * (44/31));
+    $cy = $exe[$i]->mark * 50 - 40;
+    $statistics .= '<circle cx="' . $cx . '" cy="' . $cy . '" r="6" fill="#00CC00" title="' . date('y/m/d', $mark->date) . '"/>';
+    #end circles points
+    #lines between points/marks
+    if($i > 0){
+      $x1 = date('n', $exe[$i-1]->date);
+      $x1d = date('j', $exe[$i-1]->date);
+      $x1 = 20 + $s_months[$x1] * 44 + ($x1d * (44/31));
+      $y1 = $exe[$i-1]->mark * 50 - 40;
+      $x2 = date('n', $exe[$i]->date);
+      $x2d = date('j', $exe[$i]->date);
+      $x2 = 20 + $s_months[$x2] * 44 + ($x2d * (44/31));
+      $y2 = $exe[$i]->mark * 50 - 40;
+      $statistics .= '<line
+        line x1="' . $x1 . '" y1="' . $y1 . '" x2="' . $x2 . '" y2="' . $y2 . '"
+        stroke-width="1" stroke="#00CC00" />';
+    }
+    #end lines between points/marks
+  }
+  foreach($zeug as $i => $mark){
+    #circles points
+    $cx = date('n', $mark->date);
+    $cxd = date('j', $mark->date);
+    $cx = 25 + $s_months[$cx] * 44 + ($cxd * (44/31));
+    $cy = $zeug[$i]->mark * 50 - 40;
+    $statistics .= '<circle cx="' . $cx . '" cy="' . $cy . '" r="6" fill="#0066CC"  title="' . date('y/m/d', $mark->date) . '"/>';
+    #end circles points
+    #lines between points/marks
+    if($i > 0){
+      $x1 = date('n', $zeug[$i-1]->date);
+      $x1d = date('j', $zeug[$i-1]->date);
+      $x1 = 25 + $s_months[$x1] * 44 + ($x1d * (44/31));
+      $y1 = $zeug[$i-1]->mark * 50 - 40;
+      $x2 = date('n', $zeug[$i]->date);
+      $x2d = date('j', $zeug[$i]->date);
+      $x2 = 25 + $s_months[$x2] * 44 + ($x2d * (44/31));
+      $y2 = $zeug[$i]->mark * 50 - 40;
+      $statistics .= '<line
+        line x1="' . $x1 . '" y1="' . $y1 . '" x2="' . $x2 . '" y2="' . $y2 . '"
+        stroke-width="1" stroke="#0066CC" />';
+    }
+    #end lines between points/marks
+  }
+
+  $chart_style = '<style>svg text{font-size:12px;}</style>';
+  $chart = $chart_style . '<svg width="475" height="290" class="chart tooltip">' . $bg . $target_line . $statistics . '</svg>';
+
+  return $chart;
+}
+function profile_chart_form ($form, &$form_state) {
+  $form['chart'] = array (
+    '#type' => 'fieldset',
+    '#title' => t('Chart'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#prefix' => '<div class="wrap-fieldset">',
+    '#suffix' => '</div>',
+  );
+  $form['chart']['wrap'] = array (
+    '#prefix' => '<div class="mark-chart">',
+    '#suffix' => '</div>',
+    '#type' => 'container',
+  );
+  $form['chart']['wrap']['data'] = array(
+    '#markup' => profile_draw_chart($form, $form_state)
+  );
+
+  return $form;
+}
+//----------------------------------------------------------------------------
+function mathe_profile_element_info_alter(&$type) {
+  foreach ($type['password_confirm']['#process'] as $index => $processor) {
+    if ($processor === 'user_form_process_password_confirm') {
+      unset($type['password_confirm']['#process'][$index]);
+    }
+  }
+}
+//----------------------------------------------------------------------------
+function mathe_profile_theme ($existing, $type, $theme, $path) {
+  return array(
+    'profile' =>  array(
+      'template' => 'page',
+      'path' => drupal_get_path('module', 'mathe_profile') . '/templates/',
+    )
+  );
+}
+function mathe_profile_menu_callback ($args = '') {
+  global $user;
+  $rid = array();
+
+  if (empty($args)){
+    $variables['message'] = t('No user found.');
+    return theme('profile', $variables);
+  }
+  else {
+    $query = db_select('users','u');
+    $query->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+    $query->leftJoin('nachhilfe_roles', 'nr', 'u.uid = nr.uid');
+    $query->fields('u', array('uid'));
+    $query->fields('ur', array('rid'));
+    $query->fields('nr', array('franchisetaker'));
+    $query->condition('u.uid', $args);
+    $existent = $query->execute()->fetchAll();
+
+    foreach($existent as $role) in_array($role->rid, array(4,5,6,7)) ? array_push($rid, $role->rid) : '';
+
+    if(in_array(7, $rid)) {
+      $variables['info'] = drupal_get_form('user_info', $args);
+      $variables['chart'] = drupal_get_form('profile_chart_form', $args);
+      #$variables['edit'] = drupal_get_form('edit_employee', $args);
+      #$variables['password'] = drupal_get_form('edit_password', $args);
+      return theme('profile', $variables);
+    }
+    else { #employees/francisetakers
+      /*drupal_add_css('.page-profile #edit-password {
+        width:500px !important;
+        float:right !important;
+        margin-top:0px !important;
+        clear:right !important;
+      }', 'inline');*/
+
+      $variables['info'] = drupal_get_form('user_info', $args);
+      $variables['chart'] = '';
+      #$variables['edit'] = drupal_get_form('edit_employee', $args);
+      #$variables['password'] = drupal_get_form('edit_password', $args);
+      return theme('profile', $variables);
+    }
+  }
+}
+//----------------------------------------------------------------------------
+function mathe_profile_menu(){
+  $items['profile'] = array(
+    'title' => t('Profile'),
+    'page callback' => 'mathe_profile_menu_callback',
+    'page arguments' => array(1),
+    'access callback' => 'user_access',
+    'access arguments' => array('view profile page'),
+    'type' => MENU_NORMAL_ITEM
+  );
+
+  return $items;
+}
+//----------------------------------------------------------------------------//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------//----------------------------------------------------------------------------
+// Implementation of hook_mail()
+function mathe_profile_mail ($key, &$message, $params){
+  $def_roles = array(4 => t('Franchisetaker'), 5 => t('Secretary'), 6=> t('Teacher'));
+
+  $values = $params['values'];
+  $email_raw = $params['raw_email'];
+
+  switch ($key){
+    case 'new_password':
+      $message['subject'] = "Your password has changed";
+      $message['body'] = array("<p>Hello, " . $values->firstname . ' ' . $values->lastname . "</p>" .
+        "<p>We wanted to let you know that your Mathe-Nachilfe password was changed.</p>" .
+        "<p>If you did not perform this action, you can recover access by entering " .
+        $email_raw . " into the form at <a href=\"http://" . $_SERVER['SERVER_NAME'] . "/user/password\">http://" . $_SERVER['SERVER_NAME'] . "/user/password.</a></p>");
+
+    break;
+  }
+}
+//-------------------

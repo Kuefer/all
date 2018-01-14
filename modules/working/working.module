@@ -1,0 +1,559 @@
+<?php
+function working_init() {
+    #$lib= array('drupal.ajax', 'drupal.form', 'drupal.autocomplete');
+	#foreach($lib as $l) drupal_add_library('system', $l);
+	drupal_add_css(drupal_get_path('module', 'working') . '/css/style.css', 'module', 'all', false);
+    //drupal_add_js(drupal_get_path('module', 'working') . '/templates/js/hours.js');
+}
+function working_permission() {
+	$items['view working page'] = array('title' => t('Acces working page'));
+	return $items;
+}
+function working_access($op, $node, $account) {
+  switch ($op) {
+    case 'view':
+			if (user_access('view working page', $account)) {
+				return NODE_ACCESS_ALLOW;
+			}
+			break;
+		default:
+			return NODE_ACCESS_IGNORE;
+			break;
+  }
+}
+//----------------------------------------------------
+/*
+function working_theme () {
+  return array(
+    'working' =>  array(
+      'template' => 'page',
+      'path' => drupal_get_path('module', 'working') . '/templates/',
+    )
+  );
+}
+*/
+//----------------------------------------------------
+function hours_delete_submit_yes ($form, &$form_state) {
+  $id = $form_state['build_info']['args'][0];
+  if(!empty($id)){
+    $deleted = db_delete('nachhilfe_working');
+    $deleted->condition('id', $id);
+    $deleted->execute();
+  }
+
+  drupal_goto('working');
+}
+function hours_delete_submit_no ($form, &$form_state, $id = null) {
+  drupal_goto('working');
+}
+function delete_working_hours ($form, &$form_state, $id = null) {
+  $select = db_select('nachhilfe_working', 'w');
+  $select->addField('w','id','id');
+  $select->condition('w.id', $id, '=');
+  $entries = $select->execute()->fetchObject();
+
+  if (empty($entries->id)) return drupal_goto('working');
+
+  $build['delete'] = array(
+    '#type' => 'container',
+  );
+  $build['delete']['employee'] = array(
+    '#type' => 'value',
+    #'#value' =>$employee
+  );
+  $build['delete']['name'] = array(
+    '#type' => 'markup',
+    #'#markup' => '<h3>' . $details->firstname . ' ' . $details->lastname . ' (' .$details->role  . ')</h3>',
+  );
+  $build['delete']['question'] = array(
+    '#type' => 'markup',
+    '#markup' => t('Are you sure you want to remove selected entry?') . '</br></br>',
+  );
+  $build['delete']['yes'] = array(
+    '#type' => 'submit',
+    '#value' => t('Yes'),
+    '#submit' => array('hours_delete_submit_yes'),
+  );
+  $build['delete']['no'] = array(
+    '#type' => 'submit',
+    '#value' => t('No'),
+    '#submit' => array('hours_delete_submit_no'),
+  );
+
+  return $build;
+}
+function add_working_hours ($form, &$form_state, $id = false) {
+  $prepend = array('00','01','02','03','04','05','06','07','08','09');
+  if (!empty($id)) {
+    $select = db_select('nachhilfe_working', 'w');
+    $select->addField('w','id','id');
+    $select->addField('w','starts','starts');
+    $select->addField('w','ends','ends');
+    $select->addField('w','note','note');
+    $select->condition('w.id', $id, '=');
+    $entries = $select->execute()->fetchObject();
+  }
+//----------------------------------------------------
+  $form['working'] = array(
+      '#tree' => true,
+      '#prefix' => '<table id="wrap-working-time">',
+      '#suffix' => '</table>',
+  );
+//----------------------------------------------------
+  $form['working']['table']['title'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['working']['table']['title']['value'] = array(
+      '#type' => 'markup',
+      '#markup' => 'Work',
+      '#prefix' => '<th class="title" colspan="4">',
+      '#suffix' => '</th>',
+  );
+//----------------------------------------------------
+  $form['working']['edit'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['working']['edit']['value'] = array(
+      '#type' => 'hidden',
+      '#default_value' => !empty($id) ? $id :null,
+  );
+  //----------------------------------------------------
+  /*
+  $form['working']['edit'] = array(
+      '#type' => 'value',
+      '#default_value' => !empty($id) ? $id :'',
+  );
+  */
+  //----------------------------------------------------
+  $form['working']['starts'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['working']['starts']['header'] = array(
+      '#markup' => '<th width="50px">Starts</th>',
+  );
+  $starts = empty($entries->starts) ? date('Y-n-j H:i'): date('Y-n-j H:i', $entries->starts);
+  list ($starts_year, $starts_month, $starts_day, $starts_hours, $starts_minutes) = explode ('-', date('Y-n-j-H-i', strtotime($starts)));
+  $form['working']['starts']['date'] = array(
+      '#type' => 'date',
+      '#default_value' => array('year' => $starts_year, 'month' => $starts_month, 'day' => $starts_day),
+      '#prefix' => '<td colspan="3">',
+      #'#suffix' => '</td>',
+  );
+  $form['working']['starts']['hour'] = array(
+      '#type' => 'select',
+      '#options' => drupal_map_assoc(array_merge($prepend, range(10,23))),
+      '#default_value' => $starts_hours,
+      #'#prefix' => '<td>',
+      #'#suffix' => '</td>',
+  );
+  $form['working']['starts']['minutes']  = array(
+      '#type' => 'select',
+      '#options' => drupal_map_assoc(array_merge(array('00', '01', '02', '03', '04', '05', '06', '07', '08', '09'), range(10, 59))),
+      '#default_value' => $starts_minutes,
+      #'#prefix' => '<td>',
+      '#suffix' => '</td>',
+  );
+
+  $form['working']['ends'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['working']['ends']['header'] = array(
+      '#markup' => '<th>Ends</th>',
+  );
+
+  $ends = empty($entries->ends) ? date('Y-n-j H:i:s'): date('Y-n-j H:i:s', $entries->ends);
+  list ($ends_year, $ends_month, $ends_day, $ends_hours, $ends_minutes) = explode ('-', date('Y-n-j-H-i', strtotime($ends)));
+
+  $form['working']['ends']['date'] = array(
+      '#type' => 'date',
+      '#default_value' => array('year' => $ends_year, 'month' => $ends_month, 'day' => $ends_day),
+      '#prefix' => '<td colspan="3">',
+      #'#suffix' => '</td>',
+  );
+  $form['working']['ends']['hour'] = array(
+      '#type' => 'select',
+      '#options' => drupal_map_assoc(array_merge($prepend, range(10,23))),
+      '#default_value' => $ends_hours,
+      #'#prefix' => '<td>',
+      #'#suffix' => '</td>',
+  );
+  $form['working']['ends']['minutes']  = array(
+      '#type' => 'select',
+      '#options' => drupal_map_assoc(array_merge(array('00', '01', '02', '03', '04', '05', '06', '07', '08', '09'), range(10, 59))),
+      '#default_value' => $ends_minutes,
+      #'#prefix' => '<td>',
+      '#suffix' => '</td>',
+  );
+
+  $form['working']['note'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['working']['note']['header'] = array(
+      '#markup' => '<th>Note</th>',
+  );
+  $form['working']['note']['textarea'] = array(
+      '#type' => 'textarea',
+      '#default_value' => !empty($id) ? $entries->note :'',
+      '#cols' => 8,
+      '#prefix' => '<td  colspan="3">',
+      '#suffix' => '</td>',
+  );
+  $form['working']['submit'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['working']['submit']['button'] = array(
+      '#type' => 'submit',
+      '#value' => 'Save',
+      '#prefix' => '<td  colspan="1">',
+      '#suffix' => '</td>',
+      '#validate' => array('working_submit'),
+  );
+  $form['working']['submit']['new'] = array(
+      '#type' => 'submit',
+      '#value' => 'New',
+      '#prefix' => '<td  colspan="3">',
+      '#suffix' => '</td>',
+      '#validate' => array('working_new'),
+  );
+  return $form;
+}
+function view_working_hours () {
+  $header = array(
+    array('data' => t('id'), 'field' => 'w.id', 'sort' => 'asc'),
+    array('data' => t('starts'), 'field' => 'w.starts', 'sort' => 'title'),
+    array('data' => t('ends'), 'field' => 'w.ends', 'sort' => 'title'),
+    #array('data' => t('note'), 'field' => 'w.note', 'sort' => 'title'),
+    array('data' => t('minutes')),
+    array('data' => t('actions')),
+  );
+
+  $select = db_select('nachhilfe_working', 'w')
+    ->extend('TableSort')->orderByHeader($header)
+    ->extend('PagerDefault');
+  $select->addField('w','id','id');
+  $select->addField('w','starts','starts');
+  $select->addField('w','ends','ends');
+  #$select->addField('w','note','note');
+  $select->orderBy('w.id', 'DESC');
+  $entries = $select->execute()->fetchAll();
+
+  $query = db_query('SELECT SUM(ends-starts) as sec FROM nachhilfe_working;')->fetchObject();
+
+  if (empty($entries)) {
+    return false;
+  }
+  foreach ($entries as $entry) {
+    $entry->minutes = (($entry->ends - $entry->starts) /60) ;
+    $entry->actions = l(t('Edit'), 'working/' . $entry->id) . '&nbsp;' . l(t('Delete'), 'working/delete/' . $entry->id);
+    if ($entry->ends < $entry->starts) $entry->ends = 0;
+    else $entry->ends = date('m-d H:i', $entry->ends);
+    $entry->starts = date('m-d H:i', $entry->starts);
+    $rows[] = (array) $entry;
+  }
+
+  $build['work'] = array(
+    '#type' => 'container',
+    '#prefix' => '<div id="hours-fieldset">',
+    '#suffix' => '</div>',
+  );
+
+  $build['work']['hours'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#footer' => '##',
+    '#rows' => $rows,
+    '#empty' => t('No content available.'),
+    '#attributes' => array (
+      'class' => array('list-working-table table'),
+    ),
+  );
+
+  $days = floor($query->sec /60/*seconds*/ /60/*minutes*/ /4.5/*hours*/ /5/*days*/ /4/*weeks*/ );
+
+  $build['work']['total'] = array(
+    '#type' => 'markup',
+    '#markup' => '<p>' .
+      'Months: ' . $days .
+      ', Hours: ' . round($query->sec / 60/ 60) .
+      ', Total: ' . ('€' . round($query->sec / 60/ 60 * 2)) .
+      '. </p>',
+  );
+  $build['work']['pager'] = array(
+    '#theme' => 'pager',
+  );
+
+  return $build;
+}
+//----------------------------------------------------------------------------
+function working_new ($form, &$form_state) {
+  $form_state['redirect'] = array('working');
+}
+function working_submit ($form, &$form_state) {
+    $starts_year = $form_state['values']['working']['starts']['date']['year'];
+    $starts_month = $form_state['values']['working']['starts']['date']['month'];
+    $starts_day = $form_state['values']['working']['starts']['date']['day'];
+    $starts_hour = $form_state['values']['working']['starts']['hour'];
+    $starts_minutes = $form_state['values']['working']['starts']['minutes'];
+
+    $ends_year = $form_state['values']['working']['ends']['date']['year'];
+    $ends_month = $form_state['values']['working']['ends']['date']['month'];
+    $ends_day = $form_state['values']['working']['ends']['date']['day'];
+    $ends_hour = $form_state['values']['working']['ends']['hour'];
+    $ends_minutes = $form_state['values']['working']['ends']['minutes'];
+
+    $starts = strtotime($starts_year . '-' . $starts_month . '-' . $starts_day . ' ' . $starts_hour . ':' . $starts_minutes);
+    $ends = strtotime($ends_year . '-' . $ends_month . '-' . $ends_day . ' ' . $ends_hour . ':' . $ends_minutes);
+
+    $working = $ends - $starts;
+
+    if ($starts >= $ends) {
+        $data = array(
+            'starts' => $starts,
+            'ends' => 0
+        );
+    }
+
+    if ($starts < $ends) {
+        $data = array(
+            'starts' => $starts,
+            'ends' => $ends
+        );
+    }
+
+  try {
+    if (strlen($form_state['input']['working']['note']['textarea']) !== 0) $data['note'] = $form_state['input']['working']['note']['textarea'];
+    if (strlen($form_state['values']['working']['edit']['value']) > 0) {
+      $edit = db_update('nachhilfe_working');
+      $edit->fields($data);
+      $edit->condition('id', $form_state['values']['working']['edit']);
+      $edit->execute();
+      return drupal_set_message(t('Saved.'), 'status');
+    } else {
+      $hours = db_insert('nachhilfe_working');
+      $hours->fields(array_keys($data));
+      $hours->values($data);
+      $hours->execute();
+      return drupal_set_message(t('New entry added.'), 'status');
+    }
+
+  }
+  catch(Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+
+}
+//----------------------------------------------------
+function add_todo ($form, &$form_state, $id = false) {
+  $select = db_select('nachhilfe_working_todo', 'w');
+  $select->addField('w','id','id');
+  $select->addField('w','todo','todo');
+  $select->addField('w','date','date');
+  #if (!empty($id)) $select->condition('w.id', $id, '=');
+  $select->orderBy('w.id', 'DESC');
+  $entries = $select->execute()->fetchAll();
+//----------------------------------------------------
+  $form['todo'] = array(
+    '#tree' => true,
+    '#prefix' => '<table id="wrap-todo">',
+    '#suffix' => '</table>',
+  );
+//----------------------------------------------------
+  $form['todo']['table']['title'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>',
+  );
+  $form['todo']['table']['title']['value'] = array(
+    '#type' => 'markup',
+    '#markup' => 'To do',
+    '#prefix' => '<th class="title" colspan="2">',
+    '#suffix' => '</th>',
+  );
+//----------------------------------------------------
+  $form['todo']['edit'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>',
+  );
+  $form['todo']['edit']['value'] = array(
+    '#type' => 'hidden',
+    '#default_value' => !empty($id) ? $id :null,
+  );
+  //----------------------------------------------------
+  $form['todo']['note'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>',
+  );
+
+  $form['todo']['note']['textarea'] = array(
+    '#type' => 'textfield',
+    #'#default_value' => !empty($id) ? 'edit:' . $entries->todo :'',
+    '#size' => 40,
+    '#prefix' => '<td>',
+    '#suffix' => '</td>',
+  );
+  $form['todo']['note']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save',
+    '#prefix' => '<td>',
+    '#suffix' => '</td>',
+    '#validate' => array('todo_submit'),
+  );
+  //----------------------------------------------------
+  /* starts the todo list */
+  foreach($entries as $i => $task) {
+    $form['todo'][$i]['list'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+    );
+    $form['todo'][$i]['list']['tasks'] = array(
+      '#type' => 'markup',
+      '#prefix' => '<td colspan="2">',
+      '#suffix' => '</td>',
+      '#markup' => !empty($task) ? $task->todo :'',
+    );
+  }
+
+  return $form;
+}
+function todo_submit ($form, &$form_state) {
+  try {
+    if ((string)$form_state['input']['todo']['note']['textarea'] !== 0) {
+      $data['todo'] = $form_state['input']['todo']['note']['textarea'];
+      $data['date'] = strtotime(date('Y-m-d H:i:s'));
+    }
+
+    $todo = db_insert('nachhilfe_working_todo');
+    $todo->fields(array_keys($data));
+    $todo->values($data);
+    $todo->execute();
+    drupal_set_message(t('Saved.'), 'status');
+  }
+  catch(Exception $e) {
+    drupal_set_message($e->getMessage(), 'error');
+  }
+
+}
+//----------------------------------------------------
+function working_menu_callback ($id = false) {
+  $todo = drupal_get_form('add_todo', $id);
+  $add = drupal_get_form('add_working_hours', $id);
+  $view = drupal_get_form('view_working_hours');
+  return array($todo, $add, $view);
+}
+function amsterdam () {
+  dpm('#steak');
+    dpm('#pok');
+  dpm('#pasta');
+    dpm('#sex');
+  dpm('#weed');
+  $e = '€';
+  $tram = 8;
+  $dus = 45;
+  $intors = 45;
+  $hash = 40;
+
+  $banii = array(
+    'dus' => 35,
+    'intors' => 45,
+    'bus_aerop' => 4,
+    'allday' => 8,
+    #'sandwitch' => 7,
+    #'getränk' => 5,
+    'drugs' => 50,
+    'sandwitch' => 10,
+    'getränk' => 15,
+  );
+
+  dpm(array_sum($banii) . $e);
+
+  $adrese = array(
+    'aero -> centru' => array(
+      'bus' => 197,
+      'from' => '(Evert van de Beekstraat 202) Schipholgebouw',
+      'to' => '(Hobbemastraat 19) Rijksmuseum',
+      'ce' => 'aeroport - i amsterdam (centru)'
+    )
+  );
+
+  $time = array(
+    'aero' => array(
+      'bagaje' => 0.45,
+      'drum' => 1,
+    ),
+    'iamsteram' => array(
+      'pic' => 0.45
+    )
+  );
+
+/*
+from: Evert van de Beekstraat 202
+To: Hobbemastraat 19
+View different travel options
+16:58  17:39
+walking a minute
+16:58  Evert van de Beekstraat 202
+16:59  Schipholgebouw
+ Bus 197  Connexxion  Destination Leidseplein via Airport
+16:59  Schipholgebouw
+17:37  Rijksmuseum
+walking 2 minutes
+17:37  Rijksmuseum
+17:39  Hobbemastraat 19
+*/
+
+}
+function working_menu () {
+  $items = array();
+  $items['working'] = array(
+    'title' => 'Working Time',
+    'page callback' => 'working_menu_callback',
+    'page arguments' => array(1),
+    #'page arguments' => array('view_working_hours'),
+    'access callback' => 'user_access',
+    'access arguments' => array('view working page'),
+    'type' => MENU_NORMAL_ITEM
+  );
+  $items['working/amsterdam'] = array(
+    'title' => 'Amsterdam',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('amsterdam'),
+    'access callback' => 'user_access',
+    'access arguments' => array('view working page'),
+    'type' => MENU_LOCAL_ACTION,
+  );
+  $items['working/delete'] = array(
+    'title' => 'Delete entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('delete_working_hours', 2),
+    'access callback' => 'user_access',
+    'access arguments' => array('view working page'),
+    'type' => MENU_LOCAL_ACTION,
+  );
+  return $items;
+}
+
+/*
+-No the passed off lesson hours still have the old teacher. So that I can see from whom the student was teached.
+-If I will make the teacher disable the system should look if the teacher have still students in the future.
+-The the system should show a message in a box:”Bitte alle Schüler des Lehrers einem anderen Lehrer zuordnen.” Translated “Please switch all the students from this teacher first to an other teacher.
+-So that it is not possible to make a teacher disable if he has still students.
+-And there should be a function if I want to change all students in a day or all future students from a teacher in that day maybe monday to another teacher.
+-------
+
+My fist test report:
+-If I click in the calender somewhere it should be display as starting time: 00; 15; 30; 45 and not 5; 10; 20; …
+-If I will make a new stundent in the area from “Edit Event” and make a new student then If I come back i I need to click again in the calender to come to the “Edit Event”. It should be if I came back to the calender to creat a student I should be again in den Edit Event area and the new student should be filled out in the field new student. Do you understand?
+If I make a new event then there is the title automatically created like this: “NH+ÜS Marie Großmann K7G” K=class 7 G=Gymnasium.
+If you do the changes right me an email so I can continue the test.
+------
+
+How the system knows who is a teacher and who is a franchisetaker?
+-Is there not a field where you can click he has the rights from teacher and the rights from franchisetaker. I do not yet understand how the system is working.
+
+*/
+?>

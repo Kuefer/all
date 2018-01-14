@@ -1,0 +1,35 @@
+header,
+footer,
+.region-sidebar-left,
+.region-sidebar-right,
+.calendar-navigation,
+#page-title,
+#toolbar{
+  display:none;
+}
+
+#calendar-date-title-print{
+  display:block !important;
+}
+
+.table-cell .event{
+  border:1px solid red;
+  box-sizing: border-box;
+}
+.table-cell{
+  height:auto !important;
+}
+.table-cell .selectable{
+  height:4px !important;
+}
+.table-row .table-head{
+  height:auto !important;
+}
+
+html,
+body,
+main,
+.container{
+  padding:0px !important;
+  margin:0px !important;
+}

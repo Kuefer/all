@@ -1,0 +1,1757 @@
+<?php
+use Sabre\VObject;
+
+function calendar_init() {
+  #require(__DIR__ . '/include/caldavclient.php');
+  $lib= array(
+    'drupal.ajax',
+    'drupal.form',
+    'drupal.states',
+    'drupal.autocomplete',
+    'form','ui' ,
+    'ui.dialog',
+    'ui.resizable',
+    'ui.draggable',
+    'ui.droppable',
+    'ui.datepicker',
+    //'ui.tooltip'
+  );
+  foreach($lib as $l) drupal_add_library('system', $l);
+
+  drupal_add_js(drupal_get_path('module', 'calendar') . '/templates/js/calendar.js');
+  drupal_add_css(drupal_get_path('module', 'calendar') . '/templates/css/styles.css');
+  drupal_add_css(drupal_get_path('module', 'calendar') . '/templates/css/print.css');
+  drupal_add_js(drupal_get_path('theme', 'mathe') . '/js/jquery.maskedinput-1.3.js');
+  #drupal_set_message(t('An error occurred and processing did not complete.'), 'error');
+  #calendar_session();
+
+  $library = libraries_load('sabredav');
+}
+//----------------------------------------------------
+function calendar_permission() {
+	return array('view calendar page' => array('title' => t('Acces calendar page')));
+}
+function calendar_node_access($node, $op, $account) {
+  switch ($op) {
+    case 'view':
+      if (user_access('view calendar page', $account)) {
+        return NODE_ACCESS_ALLOW;
+      }
+    break;
+    default:
+      return NODE_ACCESS_IGNORE;
+    break;
+  }
+}
+//----------------------------------------------------
+function calendar_theme () {
+  $templates = drupal_get_path('module', 'calendar') . '/templates/';
+  $items['calendar'] = array(
+    'template' => 'page',
+    'path' => $templates
+  );
+  return $items;
+}
+//----------------------------------------------------
+function calendar_session () {
+  global $user;
+  module_load_include('inc', 'dav', 'includes/class_extensions');
+  $pdo = Database::getConnection();
+  $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+
+  $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+
+  if (!empty($_SESSION['calendar'][0])) $date = $_SESSION['calendar'][0];
+  else $date = strtotime(date('Y-m-d'));
+  /* ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------ */
+  $query = db_select('nachhilfe_roles', 'nr');
+  $query->fields('nr');
+  $query->condition('nr.uid', $user->uid);
+  $nr = $query->execute()->fetch();
+  /* ------------------------------------------------------------------ */
+  /* Settings ------------------------------------------------------ */
+  $settings = db_select('nachhilfe_settings','n');
+  $settings->fields('n');
+  $settings->condition('n.user', $user->uid);
+  $settings = $settings->execute()->fetchObject();
+  if (empty($settings)) {
+    $settings['user'] = $user->uid;
+    $settings['duration'] = 60;
+    $settings['start'] = 12;
+    $settings['mode'] = 0;
+    $settings['scroll'] = 0;
+    $query = db_insert('nachhilfe_settings');
+    $query->fields(array_keys($settings));
+    $query->values($settings);
+    $query->execute();
+    $settings = (object)$settings;
+  }
+  /* ------------------------------------------------------------------- */
+  /* Add JS --------------------------------------------------------- */
+  $duration = $settings->duration < 60 ?47 :$settings->duration -4;
+  drupal_add_js(array('calendar' => array(
+    'scroll' => $settings->scroll,
+    'start' => sprintf("%02d", $settings->start),
+    'duration' => $duration . 'px',
+    'date' => date('Y-n-j', $date),
+    'callback' => url('calendar/callback')
+  )), array('type' => 'setting'));
+  /* ------------------------------------------------------------------- */
+  /* Groups -------------------------------------------------------- */
+  $groups = array();
+  $principals = array();
+  #$principals_groups = array();
+
+  $employees = db_select('users','u');
+  $employees->leftJoin('nachhilfe_employees', 'e', 'e.uid = u.uid');
+  $employees->leftJoin('nachhilfe_roles', 'r', 'r.uid = u.uid');
+  $employees->leftJoin('users_roles', 'ur', 'ur.uid = u.uid');
+  @$employees->condition('r.franchisetaker', $nr->franchisetaker);
+  $employees->condition('ur.rid', array(4,6), 'IN');
+  $employees->condition('u.status', 1, '=');
+  $employees->addField('u','status','status');
+  $employees->addField('u','mail','mail');
+  $employees = $employees->execute()->fetchAll();
+
+  #get calendars for user
+  foreach($employees as $employee){
+    $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
+    array_push($principals, $calendars);
+  }
+  foreach($principals as $i => $calendars){
+    foreach($calendars as $y => $calendar){
+      $groups[$i][$y] = (object) array(
+        'id' => $calendar['id'][0],
+        'order' => $calendar['{http://apple.com/ns/ical/}calendar-order'],
+        'color' => $calendar['{http://apple.com/ns/ical/}calendar-color'],
+        'name' => $calendar['{DAV:}displayname'],
+        'visible' => 1
+      );
+    }
+  }
+
+  #sort calendars by ical order
+  @sort($groups, SORT_NUMERIC);
+  /* End Groups -------------------------------------------------- */
+  /* ------------------------------------------------------------------- */
+  /* Events --------------------------------------------------------- */
+  $events = array();
+  $filter = array(
+    'name' => 'VCALENDAR',
+    'is-not-defined' => false,
+    'time-range' => null,
+    'prop-filters' => array(),
+    'comp-filters' => array(
+      array(
+        'name' => 'VEVENT',
+        'is-not-defined' => false,
+        'prop-filters' => array(),
+        'comp-filters' => array(),
+        'time-range' => null,
+      ),
+    ),
+  );
+/*--------------------------*/
+#'start' => new \DateTime(date('Y-m-d', $date) . '00:00:00', null),
+#'end' => new \DateTime(date('Y-m-d', strtotime(date('Y-m-d') . '+ 1day')) . '00:00:00', null),
+/*--------------------------*/
+  #get every single calendar.
+  foreach($principals as $calendars){
+    #get events for every calendar.
+    foreach($calendars as  $calendar){
+      $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filter);
+      #read event data.
+      foreach($icss as $i => $ics){
+        $rrule = array();
+        $event = $CalDAV->getCalendarObject(array($calendar['id'][0],0), $ics);
+        $data = VObject\Reader::read($event['calendardata']);
+
+        #is a repeted event? (verify first while the repeat date is here).
+        if(!empty((string) $data->VEVENT->RRULE)){
+          foreach(explode(';', (string) $data->VEVENT->RRULE) as $rule){
+            $a = explode('=', $rule);
+            $rrule[strtolower($a[0])] = $a[1];
+          }
+        } else $rrule = null;
+
+        #verify date if is today event or between, for repeated events.
+        $start = strtotime((string) $data->VEVENT->DTSTART);
+        $end = strtotime((string) $data->VEVENT->DTEND);
+
+        if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
+
+        if (isset($rrule['until'])) {
+          #is the same week day?
+          if (date('w', $start) !== date('w', strtotime(date('Y-m-d', $date)))) continue;
+          #is repeted event with end date
+          if (strtotime($rrule['until']) < strtotime(date('Y-m-d H:i:s', $date) . '-1 day')) continue;
+        }
+        else{
+          if ($end < $date) continue;
+        }
+
+        #prepare the key for event to skip looping events later.
+        #$key = (string) $data->VEVENT->DTSTART;
+        $key = date('Ymd\THis', strtotime(date('Y-m-d', $date)
+                                          . ' ' . date('H:i:s', strtotime((string) $data->VEVENT->DTSTART))));
+        if(!array_key_exists($key, $events)) $events[$key] = array();
+
+        $teacher_name = db_select('dav_calendarinstances', 'dci');
+        $teacher_name->fields('dci', array('displayname'));
+        $teacher_name->condition('dci.id', $calendar['id'][0]);
+        $teacher_name = $teacher_name->execute()->fetch();
+
+        array_push($events[$key], (object) array(
+        #array_push($events, (object) array(
+          'id' => $event['id'],
+          'calendarid' => $calendar['id'][0],
+          'teacher_name' => $teacher_name->displayname,
+          'color' => $calendar['{http://apple.com/ns/ical/}calendar-color'],
+          'uri' => $event['uri'],
+          'uid' => (string) $data->VEVENT->UID,
+          'start' => strtotime((string) $data->VEVENT->DTSTART),
+          'end' => strtotime((string) $data->VEVENT->DTEND),
+          'summary' => (string) $data->VEVENT->SUMMARY,
+          'description' => (string) $data->VEVENT->DESCRIPTION,
+          'rrule' => $rrule,
+          'student_name' => (string) $data->VEVENT->ATTENDEE['CN'],
+          'student_mail' => (string) $data->VEVENT->ATTENDEE['EMAIL']
+        ));
+      }
+    }
+  }
+  /* End Events --------------------------------------------------- */
+  /* ------------------------------------------------------------------- */
+  $_SESSION['calendar'] = array($date, $settings, $groups, $events);
+  /* ------------------------------------------------------------------- */
+  if (isset($_SESSION['calendar_new_student'])) {
+    $cns = $_SESSION['calendar_new_student'];
+
+    $eventBeforeStudent = array(
+      'title' => $cns['title']['field']['text'],
+      'nhus' => $cns['nhus']['field']['type'],
+      'startYear' => $cns['starts-date']['field']['date']['year'],
+      'startMonth' => sprintf("%02d",$cns['starts-date']['field']['date']['month']),
+      'startDay' => sprintf("%02d",$cns['starts-date']['field']['date']['day']),
+      'startHour' => sprintf("%02d",$cns['starts-time']['field']['time']['hour']),
+      'startMin' => sprintf("%02d",$cns['starts-time']['field']['time']['minute']),
+      'endsYear' => $cns['ends-date']['field']['date']['year'],
+      'endsMonth' => sprintf("%02d",$cns['ends-date']['field']['date']['month']),
+      'endsDay' => sprintf("%02d",$cns['ends-date']['field']['date']['day']),
+      'endsHour' => sprintf("%02d",$cns['ends-time']['field']['time']['hour']),
+      'endsMin' => sprintf("%02d",$cns['ends-time']['field']['time']['minute']),
+      'repeat' => $cns['repeat']['row']['select'],
+      'endRepeat' => $cns['end-repeat']['row']['select'],
+      'endRepeatDateNever' => $cns['end-repeat']['row']['select'],
+      'endRepeatDateYear' => $cns['end-repeat']['row']['date']['year'],
+      'endRepeatDateMonth' => sprintf("%02d",$cns['end-repeat']['row']['date']['month']),
+      'endRepeatDateDay' => sprintf("%02d",$cns['end-repeat']['row']['date']['day']),
+      'student' => $cns['student']['field']['name'],
+      'teacher' => $cns['group']['field']['group'],
+      'eventId' => $cns['hidden']['event-id'],
+      'studentId' => $cns['hidden']['student'],
+      #'repeatt' => $cns['hidden']['repeat'],
+    );
+    drupal_add_js(array('studentBeforeEvent' => $eventBeforeStudent), array('type' => 'setting'));
+  }
+  /* ------------------------------------------------------------------- */
+  /* DEBUG -------------------------------------------------------- */
+  #$events= array();
+  /* ------------------------------------------------------------------- */
+
+  return array($date, $settings, $groups, $events);
+}
+//----------------------------------------------------
+function button_redirect_settings ($form, &$form_state) {
+    $form_state['redirect'] = array('settings/');
+}
+function button_request_nav_today_date_submit ($form, &$form_state) {
+  $form_state['redirect'] = array( 'calendar/' . date('Y/m/d'));
+}
+function button_request_nav_date_back_submit ($form, &$form_state){
+  #list($date, $settings, $groups, $events) = array(  $_SESSION['date'], $_SESSION['settings'], $_SESSION['groups'], $_SESSION['events']);
+  list($date, $settings, $groups, $events) = calendar_session();
+
+  $date = date_create(date('Y/m/d', $date));
+  date_add($date, date_interval_create_from_date_string('-1 day'));
+  drupal_goto('calendar/' . date_format($date,"Y/m/d"));
+}
+function button_request_nav_date_forth_submit ($form, &$form_state) {
+    #list($date, $settings, $groups, $events) = array(  $_SESSION['date'], $_SESSION['settings'], $_SESSION['groups'], $_SESSION['events']);
+  list($date, $settings, $groups, $events) = calendar_session();
+
+  $date = date_create(date('Y/m/d', $date));
+  date_add($date, date_interval_create_from_date_string('+1 day'));
+  drupal_goto('calendar/' . date_format($date,"Y/m/d"));
+}
+function calendar_form ($form, &$form_state) {
+  global $user;
+  $all_day = '';
+  list($date, $settings, $groups, $events) = calendar_session();
+  #list($date, $settings, $groups, $events) = array(  $_SESSION['date'], $_SESSION['settings'], $_SESSION['groups'], $_SESSION['events']);
+  $public_holidays_germany = get_public_holidays_germany($date);
+  if($settings->mode == 0) $hours = range(0,23);
+  else $hours = array_slice(range(0,23), $settings->start, 23, true) + array_slice(range(0,23), 0, $settings->start, true);
+  foreach ($public_holidays_germany as $holiday)
+  if(date('m-d', $date) == $holiday[0]) $all_day .= '<span>' . $holiday[1] . '</span>';
+  $url = drupal_parse_url(current_path());
+  if(isset($url['query']['student']) && $url['query']['student'] == 1) drupal_set_message(t('Entry created successfully.'), 'status');
+//----------------------------------------------------
+  $form_state['date'] = $date; #do not delete
+//----------------------------------------------------
+  $form['#tree'] = true;
+//----------------------------------------------------
+//----------------------------------------------------
+  $form['navigation'] = array(
+    '#type' => 'container',
+    '#prefix' => '<div class="calendar-navigation">',
+    '#suffix' => '</div>',
+  );
+  $form['navigation']['second']['day'] = array(
+    '#type' => 'markup',
+    '#markup' => date('l, j F Y', $date),
+    '#prefix' => '<span id="calendar-date-title">',
+    '#suffix' => '</span>',
+  );
+  $form['navigation']['first']['day_forth'] = array(
+    '#type' => 'submit',
+    '#value' => '>',
+    '#id' => 'calendar-day-forth',
+    '#attributes' => array('class' => array('submit-forth')),
+    '#submit' => array('button_request_nav_date_forth_submit'),
+  );
+  $form['navigation']['first']['day_back'] = array(
+    '#type' => 'submit',
+    '#value' => '<',
+    '#id' => 'calendar-day-back',
+    '#attributes' => array('class' => array('submit-back')),
+    '#submit' => array('button_request_nav_date_back_submit'),
+  );
+
+  $form['navigation']['first']['today'] = array(
+    '#type' => 'submit',
+    '#value' => t('Today'),
+    //'#prefix' => '<div class="navigation-wrap-today">',
+    //'#suffix' => '</div>',
+    '#id' => 'calendar-today',
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('button_request_nav_today_date_submit'),
+  );
+  $form['navigation']['first']['settings'] = array(
+    '#type' => 'submit',
+    '#value' => '.',
+    '#submit' => array('button_redirect_settings'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#id' => 'calendar-settings'
+  );
+  if (strtotime(date('Y-m-d')) == $date) $form['navigation']['first']['today']['#attributes']['disabled'] = true;
+//----------------------------------------------------
+  $form['date-print'] = array(
+    '#type' => 'markup',
+    '#markup' => '<span id="calendar-date-title-print" style="display:none;">' . date('l, j F Y', $date) . '</span>',
+  );
+//----------------------------------------------------
+  $form['all-day'] = array (
+    '#type' => 'container',
+      '#prefix' => '<table class="calendar-all-day">',
+      '#suffix' => '</table>',
+  );
+  if (!empty($all_day)) {
+      $form_state['allday'] = $all_day;
+      $form['all-day']['row'] = array (
+          '#prefix' => '<tr class="table-row all-day">',
+          '#suffix' => '</tr>'
+      );
+      $form['all-day']['row']['header'] = array (
+          '#markup' => '<th class=""></th>',
+      );
+      $form['all-day']['row']['container'] = array (
+          '#prefix' => '<td class="table-cell">',
+          '#suffix' => '</td>'
+      );
+      $form['all-day']['row']['container']['holidays'] = array (
+          '#markup' => $all_day
+      );
+  }
+//----------------------------------------------------
+  $form['day'] = array (
+    '#type' => 'container',
+      '#prefix' => '<table class="calendar-day" >',
+      '#suffix' => '</table>',
+  );
+//----------------------------------------------------
+//----------------------------------------------------
+  $first_hour = reset($hours);
+  foreach ($hours as $h) { //starts foreach hours
+    //----------
+      if ($first_hour == $h) $first_hour_class = 'border-top';
+      else $first_hour_class = '';
+    //----------
+      $settings_start = ($settings->mode == 0 ? '': ($settings->start > $h? ' settings-start' :''));
+    //----------
+      $form['day'][$h] = array (
+          '#prefix' => '<tr class="table-row ' . $first_hour_class .'" data-hour="' . 'd' . sprintf("%02d", $h) . '">',
+          '#suffix' => '</tr>',
+      );
+      $form['day'][$h]['header'] = array (
+          '#markup' => '<th class="table-head">' . date('H:i', strtotime($h . ':00:00')) . '</th>',
+      );
+      $form['day'][$h]['container'] = array (
+          '#prefix' => '<td class="table-cell ' . $settings_start . ' ">',
+          '#suffix' => '</td>',
+      );
+      //----------------------------------------------------
+
+      for ($m = 0; $m <= 45; $m += 15) {
+        if ($m == 30) $half = ''; #'half-hour'; #not used
+        else $half = null;
+        if ($m == 45) $onehour = 'one-hour';
+        else $onehour = null;
+        //----------------------------------------------------
+        $time = strtotime(sprintf("%02d", $h) . ':' . sprintf("%02d", $m));
+        $end_hour = date("H", strtotime('+' . $settings->duration . 'minutes', $time));
+        $end_minute = date('i', strtotime('+' . $settings->duration . 'minutes', $time));
+        $form['day'][$h]['container'][$m] = array (
+            '#type' => 'container',
+            '#attributes' => array(
+                'class' => array('selectable', $half, $onehour),
+                'data-starthour' => 'd' . sprintf("%02d", $h),
+                'data-startminute' => 'd' . sprintf("%02d", $m),
+                'data-endhour' => 'd' . sprintf("%02d", $end_hour),
+                'data-endminute' => 'd' . sprintf("%02d", $end_minute)
+            )
+        );
+        //----------------------------------------------------
+        //----------------------------------------------------
+        $key = date('Ymd\THis', strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' ));
+        if (!array_key_exists($key, $events)) continue;
+
+          foreach ($events[$key] as $i => $event) {
+            /*
+            if (isset($event->rrule)) {
+              if (date('w', $event->start) !== date('w', strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' ))) continue;
+              if (strtotime($event->rrule['until']) < strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' )) continue;
+            }else {
+              if ($event->end < strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' )) continue;
+            }
+            */
+
+            $duration = strtotime(date('H:i', $event->end)) - strtotime(date('H:i', $event->start));
+            $duration = $duration / 60 -5; // - padding if box-sizing
+
+            if(!empty($event->student_mail)){
+              $students = db_select('users','n');
+              $students->leftJoin('users_roles', 'ur', 'n.uid = ur.uid');
+              $students->leftJoin('nachhilfe_students', 'ns', 'n.uid = ns.uid');
+              $students->leftJoin('nachhilfe_roles', 'nr', 'n.uid = nr.uid');
+              $students->leftJoin('nachhilfe_phones', 'np', 'n.uid = np.uid');
+              $students->leftJoin('nachhilfe_mails', 'nm', 'nm.uid = n.uid');
+              $students->fields('ns');
+              $students->fields('np');
+              #$students->condition('n.status', 1);
+              $students->condition('ur.rid', 7);
+              $students->condition('nm.mail', $event->student_mail);
+              $students->condition('nm.disabled', 0);
+              $students = $students->execute()->fetch();
+
+              $event->studentid = $students->uid;
+              $event->class = $students->class;
+              $event->schultyp = $students->schultyp;
+              $event->number = $students->number;
+              $event->student_firstname = $students->student_firstname;
+              $event->student_lastname = $students->student_lastname;
+            }
+
+            $titleHours = date('H:i', $event->start) . ' - ' . date('H:i', $event->end)
+              . (!empty($event->summary)? ' ' . $event->summary: '');
+
+            $title = (!empty($event->class)? 'Klass ' . $event->class: '')
+              . (!empty($event->schultyp)? ' ' . $event->schultyp: '')
+              . (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description: '');
+
+            $titleStudent = (!empty($event->student_name)? ' ' . $event->student_name: '')
+              . (!empty($event->number)? ' ' . $event->number: '');
+
+            $form['day'][$h]['container'][$m]['event'][$i] = array (
+              '#type' => 'container',
+              '#attributes' => array(
+                'class' => array('event'),
+                ## starts event data
+                'data-id' => !empty($event->id) ?$event->id : 0,
+                'data-starts_date' => !empty($event->start) ?date('Y-m-d', $event->start) :'',
+                'data-starts_time' => !empty($event->start) ?date('H:i:s', $event->start) :'',
+                'data-ends_date' => !empty($event->end) ?date('Y-m-d', $event->end) :'',
+                'data-ends_time' => !empty($event->end) ?date('H:i:s', $event->end) :'',
+                'data-groups' => !empty($event->calendarid) ?$event->calendarid :'',
+                'data-nush' => !empty($event->description) ?$event->description : 'None',
+                'data-repeat_event' => (!empty($event->rrule['freq']) && $event->rrule['freq'] == 'WEEKLY')? 1:0,
+                'data-repeat_end' => !empty($event->rrule['until']) ? 1:0,
+                'data-repeat_end_date' => !empty($event->rrule['until']) ?date('Y-m-d', strtotime($event->rrule['until'])) :0,
+                'data-color' => !empty($event->color) ?$event->color :'',
+                'data-student' => !empty($event->studentid) ?$event->studentid :'',
+                'data-student_firstname' => !empty($event->student_firstname) ?$event->student_firstname :'',
+                'data-student_lastname' => !empty($event->student_lastname) ?$event->student_lastname :'',
+                'data-class' => !empty($event->class) ?$event->class :'',
+                'data-school' => !empty($event->schultyp) ?$event->schultyp :'',
+                'data-title' => !empty($event->summary) ?$event->summary :'',
+                ##ends event data
+                'style' => array(
+                  'background-color:' . (!empty($event->color) ? $event->color : 'green') . ';',
+                  'height:' . $duration . 'px;'
+                )
+              ),
+
+              '#states' => array(
+                'visible' => array(
+                  ':input[data-group="' . (!empty($event->calendarid) ?$event->calendarid :null) . '"]' => array('checked' => true),
+                )
+              )
+            );
+            $form['day'][$h]['container'][$m]['event'][$i]['content'] = array (
+              '#type' => 'markup',
+              '#markup' => '<span class="event-content-hours">' . $titleHours . ' </span><br>
+                                    <span class="event-content-title">' . $title . ' </span><br>
+                                    <span class="event-content-student">' . $titleStudent . ' </span>'
+            );
+          }  //end for events
+        //----------------------------------------------------
+        //----------------------------------------------------
+        //----------------------------------------------------
+      } //end for minutes
+  } //end foreach hours
+//----------------------------------------------------
+  return $form;
+}
+//----------------------------------------------------------------------------
+function calendar_block_info () {
+  $blocks['groups'] = array(
+    'info' => t('(block left) Calendar groups'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+  $blocks['events'] = array(
+    'info' => t('(block right) Calendar edit/create events'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+  $blocks['month'] = array(
+    'info' => t('(block left) Calendar month'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+  $blocks['all_events'] = array(
+    'info' => t('(block left) Events'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+  $blocks['new-student'] = array(
+    'info' => t('(block right) Calendar new student'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+  return $blocks;
+}
+function calendar_block_view ($delta = '') {
+  switch ($delta) {
+    case 'groups':
+      $block = array(
+        'subject' => t('Groups'),
+        'content' => drupal_get_form('groups_block'),
+      );
+    break;
+    case 'events':
+      $block = array(
+        'subject' => t('Edit event'),
+        'content' => drupal_get_form('events_block'),
+      );
+    break;
+    case 'month':
+      $block = array(
+        'content' => drupal_get_form('month_block'),
+      );
+    break;
+    case 'all_events':
+      $block = array(
+        'subject' => t('Events'),
+        'content' => drupal_get_form('all_events_form'),
+      );
+    break;
+    case 'new-student':
+      $block = array(
+        'subject' => t('New Student'),
+        #'content' => drupal_get_form('create_student_form'),
+      );
+    break;
+    default:
+        $block = null;
+    break;
+  }
+  return $block;
+}
+//---------------------------------------------------------------------------
+function all_events_form ($form, &$form_state){
+  global $user;
+  module_load_include('inc', 'dav', 'includes/class_extensions');
+  $pdo = Database::getConnection();
+  $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+  $all_events = array();
+  $principals = array();
+  $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+  $date = strtotime(date('Y-m-d'));
+  
+  #franchisetaker id
+  $userf = db_select('nachhilfe_roles', 'nr');
+  $userf->fields('nr');
+  $userf->condition('nr.uid', $user->uid);
+  $userf = $userf->execute()->fetch();
+  
+  $employees = db_select('users','u');
+  $employees->leftJoin('nachhilfe_employees', 'e', 'e.uid = u.uid');
+  $employees->leftJoin('nachhilfe_roles', 'r', 'r.uid = u.uid');
+  $employees->leftJoin('users_roles', 'ur', 'ur.uid = u.uid');
+  $employees->condition('r.franchisetaker', $userf->franchisetaker);
+  $employees->condition('ur.rid', array(4,6), 'IN');
+  $employees->condition('u.status', 1, '=');
+  $employees->addField('u','status','status');
+  $employees->addField('u','mail','mail');
+  $employees = $employees->execute()->fetchAll();
+
+  #get calendars for user
+  foreach($employees as $employee){
+    $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
+    array_push($principals, $calendars);
+  }
+  $filter = array(
+    'name' => 'VCALENDAR',
+    'is-not-defined' => false,
+    'time-range' => null,
+    'prop-filters' => array(),
+    'comp-filters' => array(
+      array(
+        'name' => 'VEVENT',
+        'is-not-defined' => false,
+        'prop-filters' => array(),
+        'comp-filters' => array(),
+        'time-range' => null,
+      ),
+    ),
+  );
+
+  #get every single calendar.
+  foreach($principals as $calendars){
+    #get all_events for every calendar.
+    foreach($calendars as  $calendar){
+      $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filter);
+      #read event data.
+      foreach($icss as $i => $ics){
+        $rrule = array();
+        $event = $CalDAV->getCalendarObject(array($calendar['id'][0],0), $ics);
+        $data = VObject\Reader::read($event['calendardata']);
+
+        #is a repeted event? (verify first while the repeat date is here).
+        if(!empty((string) $data->VEVENT->RRULE)){
+          foreach(explode(';', (string) $data->VEVENT->RRULE) as $rule){
+            $a = explode('=', $rule);
+            $rrule[strtolower($a[0])] = $a[1];
+          }
+        } else $rrule = null;
+
+        #verify date if is today event or between, for repeated all_events.
+        $start = strtotime((string) $data->VEVENT->DTSTART);
+        $end = strtotime((string) $data->VEVENT->DTEND);
+
+        if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
+        if ($end > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
+
+        $teacher_name = db_select('dav_calendarinstances', 'dci');
+        $teacher_name->fields('dci', array('displayname'));
+        $teacher_name->condition('dci.id', $calendar['id'][0]);
+        $teacher_name = $teacher_name->execute()->fetch();
+
+        array_push($all_events, (object) array(
+        #array_push($all_events, (object) array(
+          'id' => $event['id'],
+          'calendarid' => $calendar['id'][0],
+          'teacher_name' => $teacher_name->displayname,
+          'color' => $calendar['{http://apple.com/ns/ical/}calendar-color'],
+          'uri' => $event['uri'],
+          'uid' => (string) $data->VEVENT->UID,
+          'start' => strtotime((string) $data->VEVENT->DTSTART),
+          'end' => strtotime((string) $data->VEVENT->DTEND),
+          'summary' => (string) $data->VEVENT->SUMMARY,
+          'description' => (string) $data->VEVENT->DESCRIPTION,
+          'rrule' => $rrule,
+          'student_name' => (string) $data->VEVENT->ATTENDEE['CN'],
+          'student_mail' => (string) $data->VEVENT->ATTENDEE['EMAIL']
+        ));
+      }
+    }
+  }
+  
+  $block['events'] = array(
+    
+    '#prefix' => '<table class="table-all-events table">',
+    '#suffix' => '</table>',
+  );
+
+  foreach($all_events as $i => $event){
+    if($i > 39) continue;
+    $block['events'][$i]['table']  = array(
+      '#type' => 'markup',
+      '#markup' => '<p>' . date('H:i l d/m/Y', $event->start) . '</p>',
+      '#prefix' => '<tr><td>',
+      '#suffix' => '</td><tr>',
+    );
+  }
+  
+  return $block;
+  
+}
+//---------------------------------------------------------------------------
+function button_calendar_new_student ($form, &$form_state){
+  $_SESSION['calendar_new_student'] = $form_state['values']['event'];
+  drupal_goto('/students/create');
+}
+function button_event_delete_submit ($form, &$form_state) {
+  try{
+    module_load_include('inc', 'dav', 'includes/class_extensions');
+    $pdo = Database::getConnection();
+    $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+
+    $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+
+    $uri = db_select('dav_calendarobjects','n');
+    $uri->fields('n');
+    $uri->condition('n.id', $form_state['values']['event']['hidden']['event-id']);
+    $uri = $uri->execute()->fetch();
+
+    $CalDAV->deleteCalendarObject(array($form_state['values']['event']['group']['field']['group'],0), $uri->uid . '.ics');
+  }
+  catch(Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+}
+function button_starts_days_month_callback ($form, &$form_state) {
+    $starts_year = $form['event']['starts']['field']['date']['year']['#value'];
+    $starts_month = $form['event']['starts']['field']['date']['month']['#value'];
+    $day = drupal_map_assoc(range(1,date('t', strtotime($starts_year .'/'. $starts_month . '/20 00:00:00'))));
+    $form['event']['starts']['field']['date']['day']['#options'] = $day;
+
+    $commands[] = ajax_command_replace('#event-starts-date-day', drupal_render($form['event']['starts']['field']['date']['day']));
+    return array('#type' => 'ajax', '#commands' => $commands);
+}
+function button_ends_days_month_callback ($form, &$form_state) {
+    $ends_year = $form['event']['ends-date']['field']['date']['year']['#value'];
+    $ends_month = $form['event']['end-dates']['field']['date']['month']['#value'];
+    $day = drupal_map_assoc(range(1,date('t', strtotime($ends_year .'/'. $ends_month . '/10 00:00:00'))));
+    $form['event']['ends']['field']['date-date']['day']['#options'] = $day;
+
+    $commands[] = ajax_command_replace('#event-ends-date-day', drupal_render($form['event']['ends-date']['field']['date']['day']));
+    return array('#type' => 'ajax', '#commands' => $commands);
+}
+function button_end_repeat_days_month_callback ($form, &$form_state) {
+    $ends_year = $form['event']['end-repeat']['row']['date']['year']['#value'];
+    $ends_month = $form['event']['end-repeat']['row']['date']['month']['#value'];
+    $day = drupal_map_assoc(range(1,date('t', strtotime($ends_year .'/'. $ends_month . '/10 00:00:00'))));
+    $form['event']['end-repeat']['row']['date']['day']['#options'] = $day;
+
+    $commands[] = ajax_command_replace('#event-end-repeat-date-day', drupal_render($form['event']['end-repeat']['row']['date']['day']));
+    return array('#type' => 'ajax', '#commands' => $commands);
+}
+function button_event_save_callback ($form, &$form_state) {
+  $commands[] = ajax_command_invoke(null, 'refresh');
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+function button_event_save_submit ($form, &$form_state) {
+  global $user;
+  list($date, $settings, $groups, $events) = $_SESSION['calendar'];
+  $form_values = $form_state['values']['event'];
+  module_load_include('inc', 'dav', 'includes/class_extensions');
+  $pdo = Database::getConnection();
+  $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+  $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+
+  $starts = strtotime(
+    $form_values['starts-date']['field']['date']['year'] . '-' .
+    $form_values['starts-date']['field']['date']['month'] . '-' .
+    $form_values['starts-date']['field']['date']['day'] . ' ' .
+    $form_values['starts-time']['field']['time']['hour'] . ':' .
+    $form_values['starts-time']['field']['time']['minute'] . ':00'
+  );
+  $ends = strtotime(
+    $form_values['ends-date']['field']['date']['year'] . '-' .
+    $form_values['ends-date']['field']['date']['month'] . '-' .
+    $form_values['ends-date']['field']['date']['day'] . ' ' .
+    $form_values['ends-time']['field']['time']['hour'] . ':' .
+    $form_values['ends-time']['field']['time']['minute'] . ':00'
+  );
+
+  if ($starts > $ends) return drupal_set_message(t('Endtime must be biger than start time'), 'error');
+  #$change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
+  $value = array('starts' => $starts, 'ends' => $ends);
+  $value['type'] = (empty($form_values['nhus']['field']['type'])? 'None': $form_values['nhus']['field']['type']);
+  $value['summary'] = (empty($form_values['title']['field']['text'])? 'New event': $form_values['title']['field']['text']);
+  $value['repeat'] = (empty($form_values['repeat']['row']['select'])? false:  $form_values['repeat']['row']['select']);
+  if (!empty($form_values['group']['field']['group'])) $value['calendarid'] = $form_values['group']['field']['group'];
+    else return false;
+  if (!empty($form_values['hidden']['student']) && (int)$form_values['hidden']['student'] !== 0) {
+    $query = db_select('nachhilfe_students', 'ns');
+    $query->leftJoin('nachhilfe_mails', 'nm', 'nm.uid = ns.uid');
+    $query->fields('ns');
+    $query->fields('nm');
+    $query->condition('ns.uid', $form_values['hidden']['student']);
+    $student = $query->execute()->fetch();
+    $value['student'] = $form_values['hidden']['student'];
+    $value['student_mail'] = $student->mail;
+    $value['student_name'] = $student->student_firstname . ' ' . $student->student_lastname;
+  } else $value['student'] = false;
+
+
+
+  if ((int)$form_values['repeat']['row']['select'] !== 0) {
+    $value['ends'] = strtotime(date('Y-m-d', $starts) . ' ' . date('H:i', $ends));
+    $value['repeat_end'] = $form_values['end-repeat']['row']['select'];
+    if ((int)$form_values['end-repeat']['row']['select'] !== 0) {
+      $value['repeat_end_date'] = strtotime(
+        $form_values['end-repeat']['row']['date']['year'] . '-' .
+        $form_values['end-repeat']['row']['date']['month'] . '-' .
+        $form_values['end-repeat']['row']['date']['day']
+      );
+      if ($value['repeat_end_date'] < strtotime(date('Y-m-d'))) $value['repeat_end_date'] = $value['ends'];
+    }
+    else {
+      $value['repeat_end'] = false;
+      $value['repeat_end_date'] = false;
+    }
+  }
+  else {
+    $value['repeat_end'] = false;
+    $value['repeat_end_date'] = false;
+  }
+
+  $value = (object) $value;
+
+  #NEW event
+  if ((int)$form_values['hidden']['event-id'] == 0){
+    try{
+      $vevent = new VObject\Component\VCalendar(array(
+        'VEVENT' => array(
+          'SUMMARY' => $value->summary ,
+          'DESCRIPTION' => $value->type ,
+          'DTSTART' => new \DateTime(date('Y-m-d H:i:s', $value->starts)), #'2017-09-09 21:00:00'),
+          'DTEND'  => new \DateTime(date('Y-m-d H:i:s', $value->ends))
+      )));
+      if($value->student){
+        $vevent->VEVENT->add('ATTENDEE', $value->student_mail, array(
+          'EMAIL'  => $value->student_mail,
+          'CN' => $value->student_name
+        ));
+      }
+      if($value->repeat_end){
+        $vevent->VEVENT->add('RRULE', array(
+          'FREQ'  => 'WEEKLY',
+          'INTERVAL' => 1,
+          'UNTIL' => date('Ymd\THis', $value->repeat_end_date)
+        ));
+      }
+      elseif($value->repeat){ #every week
+        $vevent->VEVENT->add('RRULE', array(
+          'FREQ'  => 'WEEKLY',
+          'INTERVAL' => 1
+        ));
+      }
+
+      $calendardata = VObject\Reader::read($vevent->serialize());
+      $uri = (string) $calendardata->VEVENT->UID . '.ics';
+
+      $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $uri, $vevent->serialize());
+      unset($_SESSION['calendar']);
+      if(!empty($response)) return drupal_set_message(t('Event saved successfully'), 'status flash');
+    }
+    catch(Exception $e) {
+      return drupal_set_message($e->getMessage(), 'error');
+    }
+  }
+  #if is NOT a new event , update
+  else if((int)$form_values['hidden']['event-id'] !== 0){
+    $object = db_select('dav_calendarobjects','co');
+    $object->fields('co');
+    $object->condition('co.id', (int)$form_values['hidden']['event-id']);
+    $object = $object->execute()->fetch();
+    #get event from db
+    $vevent = VObject\Reader::read($object->calendardata);
+
+    #add new values
+    $vevent->VEVENT->SUMMARY = $value->summary;
+    $vevent->VEVENT->DESCRIPTION = $value->type;
+    $vevent->VEVENT->DTSTART = new \DateTime(date('Y-m-d H:i:s', $value->starts));
+    $vevent->VEVENT->DTEND = new \DateTime(date('Y-m-d H:i:s', $value->ends));
+
+    #if we have invitees append to event
+    if($value->student){
+      $vevent->VEVENT->ATTENDEE = $value->student_mail;
+      $vevent->VEVENT->ATTENDEE['EMAIL'] = $value->student_mail;
+      $vevent->VEVENT->ATTENDEE['CN'] = $value->student_name;
+    } else $vevent->VEVENT->remove('ATTENDEE');
+
+    #is a repeted event, with an end date
+    if($value->repeat_end){
+      $vevent->VEVENT->remove('RRULE');
+      $vevent->VEVENT->add('RRULE', array(
+        'FREQ'  => 'WEEKLY',
+        'INTERVAL' => 1,
+        'UNTIL' => date('Ymd\THis', $value->repeat_end_date)
+      ));
+    }
+    #is a repeted event every week
+    elseif($value->repeat){
+      $vevent->VEVENT->remove('RRULE');
+      $vevent->VEVENT->add('RRULE', array(
+        'FREQ'  => 'WEEKLY',
+        'INTERVAL' => 1
+      ));
+    }
+    #is not a repeted event
+    else $vevent->VEVENT->remove('RRULE');
+
+    /*--------------------------------------*/
+    #(int)$change_only == 1
+    /*--------------------------------------*/
+
+    #if changes the group, delete (does't work otherway with ical) the old event and create a new one
+    if($object->calendarid !== $value->calendarid){
+      $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $vevent->serialize());
+      $CalDAV->deleteCalendarObject(array($object->calendarid,0), $object->uri);
+    }
+    #make changes to db with new values added to event object
+    else{
+      $response = $CalDAV->updateCalendarObject(array($object->calendarid,1), $object->uri, $vevent->serialize());
+    }
+
+    unset($_SESSION['calendar']);
+    if(!empty($response)) return drupal_set_message(t('Event saved successfully'), 'status flash');
+  }
+  #else if((int)$form_values['hidden']['event-id'] !== 0 && (int)$change_only == 1){}
+}
+function events_block () {
+  global $user;
+  list($date, $settings, $result, $events) = $_SESSION['calendar'];
+  list($year, $month, $day) = array(date('Y', $date), date('n', $date), date('j', $date));
+  $prepend = array('00','01','02','03','04','05','06','07','08','09');
+  $months = array_combine(range(1,12), array('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'));
+  unset($_SESSION['calendar_new_student']);
+
+  if (!empty($result) && is_array($result)) {
+    foreach($result as $calendar) {
+      foreach($calendar as $i => $group) $groups[$group->id] = $group->name;
+    }
+  }
+
+//----------------------------------------------------
+//----------------------------------------------------
+	$form['event'] = array(
+        '#tree' => true,
+		'#prefix' => '<table class="event-block">',
+		'#suffix' => '</table>'
+	);
+//----------------------------------------------------
+    $form['event']['close']['span'] = array(
+        '#type' => 'markup',
+        '#markup' => '<span id="close-panel"></span>',
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>'
+    );
+//----------------------------------------------------
+    $form['event']['title']['field']['text']= array(
+        '#title' => 'Title',
+        '#type' => 'textfield',
+        '#id' => 'event-title',
+        '#size' => 33,
+        '#attributes' => array('placeholder' => t('None')),
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
+        '#maxlength' => 2000
+    );
+//----------------------------------------------------
+    $form['event']['nhus']['field']['type']= array(
+        '#title' => t('Type'),
+        '#options' => drupal_map_assoc(array('None','NH+ÜS', 'NH', 'ÜS', 'PROBE')),
+        '#type' => 'select',
+        '#id' => 'event-nush',
+        '#attributes' => array('placeholder' =>''),
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
+        '#maxlength' => 2000
+    );
+//----------------------------------------------------
+	$form['event']['starts-date']['header']['title'] = array(
+		'#markup' => '<tr><td><label for="event-starts">Starts date</label></td></tr>',
+	);
+//----------------------------------------------------
+    $form['event']['starts-date']['field']['date']['day'] = array(
+        '#type' => 'select',
+        '#prefix' => '<tr class="fix-date-select"><td>',
+        '#options' => drupal_map_assoc(range(1, 31)),
+        '#default_value' => date('j'),
+        '#id' => 'event-starts-date-day'
+    );
+    $form['event']['starts-date']['field']['date']['month'] = array(
+        '#type' => 'select',
+        '#options' => $months,
+        '#default_value' => date('n'),
+        '#id' => 'event-starts-date-month',
+        '#prefix' => '<span class="float-left slash">&nbsp;</span>',
+        '#suffix' => '<span class="float-left slash">&nbsp;</span>',
+        '#ajax' => array(
+            'callback' => 'button_starts_days_month_callback'
+        )
+    );
+    $form['event']['starts-date']['field']['date']['year'] = array(
+        '#type' => 'select',
+        '#options' => drupal_map_assoc(range(1900, 2050)),
+        '#default_value' => date('Y'),
+        '#suffix' => '</td></tr>',
+        '#id' => 'event-starts-date-year'
+    );
+/*
+    $form['event']['starts']['field']['markup'] = array(
+		'#markup' => '<span class="float-left">&nbsp;&nbsp;&nbsp;&nbsp;</span>'
+	);
+*/
+  //----------------------------------------------------
+	$form['event']['starts-time']['header']['title'] = array(
+		'#markup' => '<tr><td><label for="event-starts-hour">Starts hour</label></td></tr>',
+	);
+//----------------------------------------------------
+    $form['event']['starts-time']['field']['time']['hour'] = array(
+        '#type' => 'select',
+        '#prefix' => '<tr class="fix-date-select"><td>',
+        '#id' => 'event-starts-hour',
+        '#suffix' => '<span class="float-left twodots">&nbsp;</span>',
+        '#options' => drupal_map_assoc(array_merge($prepend, range(10,23)))
+    );
+    $form['event']['starts-time']['field']['time']['minute'] = array(
+        '#type' => 'select',
+        '#suffix' => '</td></tr>',
+        '#id' => 'event-starts-minute',
+        '#options' => drupal_map_assoc(array_merge(array('00', '05'), range(10,55,5)))
+    );
+//----------------------------------------------------
+//----------------------------------------------------
+	$form['event']['ends-date']['header']['title'] = array(
+		'#markup' => '<tr><td><label for="event-ends">Ends </label></td></tr>'
+	);
+//----------------------------------------------------
+    $form['event']['ends-date']['field']['date']['day'] = array(
+        '#type' => 'select',
+        '#options' => drupal_map_assoc(range(1, 31)),
+        '#default_value' => date('j'),
+        '#prefix' => '<tr class="fix-date-select"><td>',
+        '#id' => 'event-ends-date-day'
+    );
+    $form['event']['ends-date']['field']['date']['month'] = array(
+        '#type' => 'select',
+        '#options' => $months,
+        '#default_value' => date('n'),
+        '#id' => 'event-ends-date-month',
+        '#prefix' => '<span class="float-left slash">&nbsp;</span>',
+        '#suffix' => '<span class="float-left slash">&nbsp;</span>',
+        '#ajax' => array(
+            'callback' => 'button_ends_days_month_callback'
+        )
+    );
+    $form['event']['ends-date']['field']['date']['year'] = array(
+        '#type' => 'select',
+        '#options' => drupal_map_assoc(range(1900, 2050)),
+        '#default_value' => date('Y'),
+        '#suffix' => '</td></tr>',
+        '#suffix' => '<span class="float-left slash">&nbsp;</span>',
+        '#id' => 'event-ends-date-year'
+    );
+  /*
+	$form['event']['ends-date']['field']['markup'] = array(
+		'#markup' => '<span class="float-left">&nbsp;&nbsp;&nbsp;&nbsp;</span>'
+	);
+  */
+//----------------------------------------------------
+	$form['event']['ends-time']['header']['title'] = array(
+		'#markup' => '<tr><td><label for="event-ends">Ends hour</label></td></tr>'
+	);
+//----------------------------------------------------
+    $form['event']['ends-time']['field']['time']['hour'] = array(
+        '#type' => 'select',
+        '#prefix' => '<tr class="fix-date-select"><td>',
+        '#id' => 'event-ends-hour',
+        '#suffix' => '<span class="float-left twodots">&nbsp;</span>',
+        '#options' => drupal_map_assoc(array_merge($prepend, range(10,23)))
+    );
+    $form['event']['ends-time']['field']['time']['minute'] = array(
+        '#type' => 'select',
+        '#suffix' => '</td></tr>',
+        '#id' => 'event-ends-minute',
+        '#options' => drupal_map_assoc(array_merge(array('00', '05'), range(10,55,5)))
+    );
+//----------------------------------------------------
+    $form['event']['repeat']['row']['select'] = array(
+        '#type' => 'select',
+        '#title' => 'Repeat',
+        '#id' => 'event-repeat',
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
+        '#options' => array('None', 'Every Week')
+    );
+//----------------------------------------------------
+	$form['event']['end-repeat']['row'] = array(
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</tr>',
+        '#type' => 'container',
+        '#states' => array(
+            'invisible' => array(
+                'select[name="event[repeat][row][select]"]' => array('value' => '0'),
+            )
+        ),
+	);
+    $form['event']['end-repeat']['row']['select'] = array(
+        '#type' => 'select',
+        '#title' => 'End repeat',
+        '#id' => 'event-end-repeat',
+        '#options' => array('Never', 'On Date'),
+        #'#ajax' => array('callback' => 'select_change_end_repeat_callback')
+    );
+    $form['event']['end-repeat']['row']['date'] = array(
+        '#type' => 'container',
+        '#states' => array(
+            'visible' => array(
+                'select[name="event[end-repeat][row][select]"]' => array('value' => '1'),
+            )
+        ),
+    );
+    $form['event']['end-repeat']['row']['date']['year'] = array(
+        '#type' => 'select',
+        '#options' => drupal_map_assoc(range(1900, 2050)),
+        '#default_value' => date('Y'),
+        '#suffix' => '<span class="float-left slash">&nbsp;</span>',
+        '#id' => 'event-end-repeat-date-year',
+    );
+    $form['event']['end-repeat']['row']['date']['month'] = array(
+        '#type' => 'select',
+        '#options' => $months,
+        '#default_value' => date('n'),
+        '#id' => 'event-end-repeat-date-month',
+        '#suffix' => '<span class="float-left slash">&nbsp;</span>',
+        '#ajax' => array(
+            'callback' => 'button_end_repeat_days_month_callback'
+        )
+    );
+    $form['event']['end-repeat']['row']['date']['day'] = array(
+        '#type' => 'select',
+        '#options' => drupal_map_assoc(range(1, 31)),
+        '#default_value' => date('j'),
+        '#id' => 'event-end-repeat-date-day',
+        '#suffix' => '</td>',
+    );
+//----------------------------------------------------
+	$form['event']['change-only']['row'] = array(
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</tr>',
+        '#type' => 'container',
+        '#states' => array(
+            'invisible' => array(
+                'select[name="event[repeat][row][select]"]' => array('value' => '0'),
+            )
+        ),
+	);
+  /*
+    $form['event']['change-only']['row']['checkbox'] = array(
+        '#title' => t('Change only this event.'),
+        '#type' => 'checkbox',
+        #'#id' => 'event-end-repeat-all',
+        '#id' => 'event-change-only',
+        '#suffix' => '</td>',
+    );
+    */
+//----------------------------------------------------
+	$form['event']['student']['header']['title'] = array(
+		'#markup' => '<tr><td><label for="event-students">' . t('Student') . '</label></td></tr>'
+	);
+	$form['event']['student']['header']['link-new'] = array(
+		'#type' => 'submit',
+		'#id' => 'button-new-student',
+		'#value' => t('(New student)'),
+		#'#markup' => '<a href="/students/create?page=calendar&date=' . $date . '" id="button-new-student" >' . t('(New Student)') . '</a>',
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
+        #'#ajax' => array('callback' => ''),
+        '#submit' => array('button_calendar_new_student'),
+	);
+//----------------------------------------------------
+    $form['event']['student']['field']['name'] = array(
+        #'#title' => t('Class student') . ' <a id="button-new-student" >' . t('(New)') . '</a>',
+        '#type' => 'textfield',
+        '#size' => 33,
+        '#id' => 'event-students',
+        '#attributes' => array('placeholder' =>'None', 'class' => array('event-student-input')),
+        '#prefix' => '<tr><td>
+          <div id="event-student-tag">
+            <span id="event-student-wrap">
+              <span id="event-student-name"></span>
+              <span id="student-tag-remove">&nbsp;&nbsp;&nbsp;</span>
+            </span>
+          </div>',
+        '#suffix' => '</td></tr>',
+        '#autocomplete_path' => 'calendar/search'
+    );
+//----------------------------------------------------
+	$form['event']['group']['header']['title'] = array(
+		'#markup' => '<tr><td><label for="event-group-select">' . t('Class teacher') . '</label></td></tr>'
+	);
+    /*
+	$form['event']['group']['header']['link-new'] = array(
+		'#type' => 'button',
+		'#id' => 'button-new-group',
+		'#value' => t('(New)'),
+		#'#markup' => '<a id="button-new-student" >' . t('(New)') . '</a>',
+        '#suffix' => '</label></td>',
+        #'#ajax' => array('callback' => ''),
+	);
+    */
+    $form['event']['group']['field']['group'] = array(
+        '#type' => 'select',
+        '#id' => 'event-group-select',
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
+        '#default_value' => key($groups),
+        '#options' => $groups,
+        '#validated' => true
+    );
+//----------------------------------------------------
+    $form['event']['space'] = array(
+        //'#type' => 'container',
+        '#prefix' => '<tr>',
+        '#suffix' => '</tr>',
+	);
+	$form['event']['space']['header'] = array(
+		'#markup' => '<td><br></td>',
+	);
+//----------------------------------------------------
+	$form['event']['controlls']['event-save'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save'),
+      '#id' => 'event-save',
+      '#attributes' => array('class' => array('submit-save')),
+      '#prefix' => '<tr><td>',
+      //'#suffix' => '</td>',
+      '#submit' => array('button_event_save_submit'),
+      '#attributes' => array('class' => array('submit-save')),
+      #'#ajax' => array('callback' => 'button_event_save_callback')
+	);
+  /*
+  You’re changing a repeating event.
+  You’re changing the duration of a repeating event. Do you want to change only the duration of this occurrence or change all occurrences?
+
+  Cancel / All / Only this Event
+  */
+	$form['event']['controlls']['event-delete'] = array(
+      '#type' => 'submit',
+      '#value' => t('Delete'),
+      '#id' => 'event-delete',
+      '#attributes' => array('class' => array('submit-delete')),
+      //'#prefix' => '<td>',
+      '#suffix' => '</td></tr>',
+      '#submit' => array('button_event_delete_submit'),
+      '#ajax' => array('callback' => 'button_event_save_callback')
+	);
+
+//----------------------------------------------------
+    $form['event']['hidden']['event-id'] = array(
+        '#type' => 'textfield',
+        '#default_value' => 0,
+        '#size' => 2,
+        //'#maxlength' => 120,
+        '#required' => true,
+        '#id' => 'event-id',
+        '#prefix' => '<tr style="display:none;"><td>',
+        '#suffix' => '</td></tr>'
+    );
+    $form['event']['hidden']['student'] = array(
+        '#type' => 'textfield',
+        '#default_value' => 0,
+        '#size' => 2,
+        //'#maxlength' => 120,
+        '#required' => true,
+        '#id' => 'event-student-id',
+        '#prefix' => '<tr style="display:none;"><td>',
+        '#suffix' => '</td></tr>'
+    );
+    $form['event']['hidden']['repeat'] = array(
+        '#type' => 'textfield',
+        '#default_value' => 0,
+        '#size' => 2,
+        '#required' => true,
+        '#id' => 'event-repeat-all',
+        '#prefix' => '<tr style="display:none;"><td>',
+        '#suffix' => '</td></tr>'
+    );
+	return $form;
+}
+//----------------------------------------------------------------------------
+function button_update_groups_selected_submit ($form, &$form_state) {
+	global $user;
+    $group = $form_state['values']['groups']['selected']['group'];
+    $settings = db_update('nachhilfe_settings');
+    $settings->fields(array('groups' => $group));
+    $settings->condition('user', $user->uid);
+    $settings = $settings->execute();
+    if ($settings) unset($_SESSION['calendar']);
+}
+function button_update_groups_color_callback ($form, &$form_state) {
+    global $user;
+    $id = $form_state['values']['groups']['hidden']['group'];
+    $color = $form_state['values']['groups']['hidden']['color'];
+
+    $update = db_update('dav_calendarinstances');
+    $update->fields(array('calendarcolor' => $color));
+    $update->condition('calendarid', $id, '=');
+    $update = $update->execute();
+
+    unset($_SESSION['calendar']);
+    $commands = array(ajax_command_invoke(null, 'refresh'));
+    return array('#type' => 'ajax', '#commands' => $commands);
+}
+function button_rename_group_submit ($form, &$form_state) {
+  var_dump('####');
+}
+function button_delete_group_no_callback ($form, &$form_state) {
+
+}
+function button_delete_group_submit ($form, &$form_state) {
+  try {
+    $delete_calendar = db_delete('dav_calendarinstances');
+    $delete_calendar->condition('calendarid', $form_state['input']['groups']['hidden']['group']);
+    $delete_calendar->execute();
+    drupal_set_message(t('Calendar deleted successfully.'), 'status');
+  }
+  catch(Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+}
+function groups_block ($form, &$form_state) {
+  global $user;
+  $colorslist = '';
+  $groupslist = array();
+  list($date, $settings, $groups, $events) = calendar_session();
+  $colors = array('#ac725e','#d06b64','#f83a22','#fa573c'
+    ,'#ff7537','#FFAD46','#42D692','#16a765','#7BD148'
+    ,'#B3DC6C','#FBE983','#fad165','#92E1C0','#9FE1E7'
+    ,'#9FC6E7','#4986E7','#9A9CFF','#B99AFF','#c2c2c2'
+    ,'#cabdbf','#cba6ac','#f591b2','#CD74E6','#A47AE2');
+  foreach ($colors as $i) $colorslist .= '<span class="list-colors" style="background-color:' .
+    $i . '" data-color="' . $i . '" data-group="' . $i . '"></span>';
+
+  if (empty($groups)) {
+    $form['groups']['#markup'] = '<p>' . t('Empty') . '</p>';
+    return $form;
+  }
+
+//----------------------------------------------------
+  $form['#tree'] = true;
+  $form['groups'] = array(
+    '#prefix' => '<table class="groups-block">',
+    '#suffix' => '</table>'
+  );
+  //----------------------------------------------------
+  foreach ($groups as $y => $teachers) {
+    foreach ($teachers as $i => $group) {
+      array_push($groupslist, $group->id);
+      if (empty($settings->groups)) $settings->groups = $teachers[0]->id;
+      $groupselected = ($group->id == $settings->groups) ? 'active-group' : '';
+
+      $form['groups'][$y][$i] = array(
+          '#type' => 'item',
+          '#prefix' => '<tr class="' . $groupselected . '">',
+          '#suffix' => '</tr>'
+      );
+      $form['groups'][$y][$i]['checkbox'] = array(
+          '#title' => ' ',
+          '#type' => 'checkbox',
+          #'#default_value' => $group->id,
+          '#prefix' => '<th width="28px">',
+          '#suffix' => '</th>',
+          '#attributes' => array('data-color' => $group->color, 'data-group' => $group->id, 'class' => array('group-button')),
+          #'#ajax' => array(
+              #'callback' => 'button_show_hide_group_callback'
+          #),
+          /*'#states' => array(
+              'unchecked' => array(
+                  ':input[name="name"]' => array('filled' => TRUE),
+              ),
+          ),*/
+      );
+      if ($group->visible == 1) $form['groups'][$y][$i]['checkbox']['#attributes']['checked'] = 'checked';
+      drupal_add_css('label[for="edit-groups-' . $y . '-' . $i . '-checkbox"] {background-color:' . $group->color . ' !important;}', 'inline');
+
+      $form['groups'][$y][$i]['group-name'] = array(
+          '#prefix' => '<td colspan="2" class="selectable-group">',
+          '#suffix' => '<span class="group-name">' . $group->name . '</span></td>',
+      );
+      $form['groups'][$y][$i]['colors-list'] = array(
+          '#prefix' => '<td width="26px"><div class="wrapp-groups-menu">',
+          '#suffix' => '</div></td>',
+      );
+      $form['groups'][$y][$i]['colors-list']['select'] = array(
+        '#prefix' => '<div class="color-groups-select">',
+        '#suffix' => '</div>',
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options'] = array(
+        '#prefix' => '<div class="color-groups-options">',
+        '#suffix' => '</div>',
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options']['list'] = array(
+        '#type' => 'markup',
+        '#prefix' => '<div class="groups-list-colors" data-group-selected="' . $group->id . '">',
+        '#suffix' => '</div><br><br><br><br><br><br><br><br>',
+        '#markup' => $colorslist
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options']['group-id'] = array(
+        '#type' => 'hidden',
+        '#value' => $group->id,
+      );
+/*-------------------*/
+      /*
+      $form['groups'][$y][$i]['colors-list']['select']['options']['rename-fieldset'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Rename'),
+        '#collapsible' => true,
+        '#collapsed' => true,
+        '#prefix' => '<div class="rename-group">',
+        '#suffix' => '</div>',
+        '#id' => 'rename-group',
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options']['rename-fieldset']['textfield'] = array(
+        '#type' => 'textfield',
+        '#size' => 17,
+        '#title' => t('New group name'),
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options']['rename-fieldset']['submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Save'),
+        '#attributes' => array('class' => array('submit-save')),
+        '#submit' => array('button_rename_group_submit')
+      );
+      */
+      $form['groups'][$y][$i]['colors-list']['select']['options']['hr'] = array(
+        '#type' => 'markup',
+        '#markup' => '<hr>',
+        '#prefix' => '<span class="hr-group">',
+        '#suffix' => '</span>'
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Delete'),
+        '#collapsible' => true,
+        '#collapsed' => true,
+        '#prefix' => '<div class="delete-group">',
+        '#suffix' => '</div>',
+        '#id' => 'delete-group',
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset']['question'] = array(
+        '#type' => 'item',
+        '#markup' => t('Are you sure you want to delete calendar?'),
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset']['yes'] = array(
+        '#type' => 'submit',
+        '#value' => t('Yes'),
+        '#attributes' => array('class' => array('submit-save')),
+        '#limit_validation_errors' => array(),
+        '#submit' => array('button_delete_group_submit'),
+        #'#ajax' => array('callback' => 'button_delete_group_callback')
+      );
+      $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset']['no'] = array(
+        '#type' => 'submit',
+        '#value' => t('No'),
+        '#attributes' => array('class' => array('submit-save delete-group-no')),
+        '#ajax' => array('callback' => 'button_delete_group_no_callback')
+      );
+/*-------------------*/
+    }
+    $form['groups'][$y]['divide'] = array(
+      '#type' => 'markup',
+      '#prefix' => '<tr class="no-hover">',
+      '#suffix' => '<th><hr></th><td colspan="2"><hr></td><td><hr></td></tr>'
+    );
+  }
+  //----------------------------------------------------
+  $form['groups']['hidden'] = array(
+    '#prefix' => '<tr style="display:none;">',
+    '#suffix' => '</tr>'
+  );
+  $form['groups']['hidden']['color'] = array(
+    '#type' => 'select',
+    '#options' => drupal_map_assoc($colors),
+    '#prefix' => '<td colspan="2">',
+    '#suffix' => '</td>',
+    '#attributes' =>array('class' => array('edit-groups-color')),
+    '#ajax' => array(
+        'callback' => 'button_update_groups_color_callback'
+    )
+  );
+  $form['groups']['hidden']['group'] = array(
+    '#type' => 'select',
+    '#options' => drupal_map_assoc($groupslist),
+    '#prefix' => '<td colspan="3">',
+    '#suffix' => '</td>',
+    '#attributes' =>array('class' => array('edit-groups-group')),
+  );
+  //----------------------------------------------------
+  $form['groups']['selected'] = array(
+    '#prefix' => '<tr style="display:none;">',
+    '#suffix' => '</tr>'
+  );
+  $form['groups']['selected']['group'] = array(
+    '#type' => 'select',
+    '#options' => drupal_map_assoc($groupslist),
+    '#prefix' => '<td colspan="3">',
+    '#suffix' => '</td>',
+    '#attributes' =>array('class' => array('edit-selected-group')),
+    '#ajax' => array(
+        'callback' => 'button_update_groups_selected_submit',
+    )
+  );
+  return $form;
+}
+//----------------------------------------------------------------------------
+function button_day_select_submit ($form, &$form_state) {
+  $day = $form_state['clicked_button']['#value'];
+  $date = $form_state['selected'];
+  $url = date("Y/m/d", strtotime($day . '-' . date("m", $date) . '-' . date("Y", $date)));
+  drupal_goto('calendar/' . $url);
+}
+function button_month_back_submit ($form, &$form_state) {
+  $form_state['month_back__forth']--;
+  $form_state['rebuild'] = true;
+}
+function button_month_forth_submit ($form, &$form_state) {
+  $form_state['month_back__forth']++;
+  $form_state['rebuild'] = true;
+}
+function button_month_callback ($form, &$form_state) {
+  return $form;
+}
+function wsprintf ($day) {
+  return sprintf('<td>%s</td>', $day);
+}
+function month_block ($form, &$form_state) {
+  global $user;
+  $date = $_SESSION['calendar'][0];
+  if (empty($form_state['month_back__forth'])) $form_state['month_back__forth'] = 0;
+  $date = strtotime($form_state['month_back__forth'] . ' Month ' . date('Y-m-d', $date)); ////////
+
+  $form_state['selected'] = $date;
+  $holidays_month = array();
+  $public_holidays_germany = get_public_holidays_germany($date);
+  /* block */
+  $timestamp = mktime(0, 0, 0, date('n', $date), 0, date('Y', $date));
+  $maxday = date('t' ,$date);
+  $thismonth = getdate($timestamp);
+  $startday = $thismonth['wday'];
+
+//----------------------------------------------------
+  foreach ($public_holidays_germany as $holiday) {
+    $public_holidays_date = explode('-', $holiday[0]);
+    if(date('m', $date) == $public_holidays_date[0]) {
+      array_push($holidays_month, $holiday[0]);
+    }
+  }
+//----------------------------------------------------
+    $form['month'] = array(
+        '#tree' => true,
+        '#prefix' => '<table id="calendar-month">',
+        '#suffix' => '</table>',
+    );
+//----------------------------------------------------
+    $form['month']['nav'] = array(
+        '#prefix' => '<tr>',
+        '#suffix' => '</tr>',
+    );
+    $form['month']['nav']['back'] = array(
+        '#type' => 'submit',
+        '#value' => '<',
+        '#prefix' => '<td>',
+        '#suffix' => '</td>',
+        #'#id' => 'day-back',
+        '#attributes' => array('class' => array('submit-month-back')),
+        '#validate' => array('button_month_back_submit'),
+        '#ajax' => array(
+          'callback' => 'button_month_callback',
+          'wrapper' => 'calendar-month'
+        ),
+    );
+    $form['month']['nav']['date'] = array(
+        '#markup' => '<td colspan="5" >' . date('F Y', $date) . '</td>',
+    );
+    $form['month']['nav']['forth'] = array(
+        '#type' => 'submit',
+        '#value' => '>',
+        '#prefix' => '<td>',
+        '#suffix' => '</td>',
+        #'#id' => 'day-forth',
+        '#attributes' => array('class' => array('submit-month-forth')),
+        '#validate' => array('button_month_forth_submit'),
+        '#ajax' => array(
+          'callback' => 'button_month_callback',
+          'wrapper' => 'calendar-month'
+        ),
+    );
+//----------------------------------------------------
+    $form['month']['header']['days'] = array(
+        '#type' => 'markup',
+        '#prefix' => '<tr>',
+        '#suffix' => '</tr>',
+        '#markup' => implode('', array_map('wsprintf', array('Mo','Tu','We','Th','Fr','Sa','Su'))),
+    );
+//----------------------------------------------------
+//----------------------------------------------------
+  for ($i = 0; $i < ($maxday + $startday); $i++) {
+      if (($i % 7) == 0 ) $form['month']['weeks'][$i]['start'] = array('#prefix' => '<tr>');
+      //------------------------------------
+      if ($i < $startday) {
+          $form['month']['weeks'][$i]['day'] = array('#markup' => '<td></td>');
+      } else {
+          $day = ($i - $startday + 1);
+          $today = date('Y-m-d', strtotime($day . '-' . date('m', $date) . '-' . date('Y', $date)));
+          if ($today == date('Y-m-d', $date) && $form_state['rebuild'] !== true && !empty($_SESSION['calendar'][0])) $class = 'day-selected';
+          else if ($today == date('Y-m-d')) $class = 'today-selected';
+          else $class = '';
+          if (!empty($holidays_month) && in_array(date('m', $date) .'-'. sprintf("%02d", $day), $holidays_month)) $class .= ' all-day';
+          $form['month']['weeks'][$i]['day'] = array(
+              '#type' => 'submit',
+              '#value' => $day,
+              '#prefix' => '<td class="' . $class . '" >',
+              '#suffix' =>  '</td>',
+              '#submit' => array('button_day_select_submit'),
+          );
+      }
+      //------------------------------------
+      if (($i % 7) == 6 ) $form['month']['weeks'][$i]['end'] = array('#suffix' =>  '</tr>');
+  }
+//----------------------------------------------------
+  return $form;
+}
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+function get_public_holidays_germany ($date = false) {
+    $date = empty($date) ? strtotime(date('Y-m-d')) : $date;
+    $easter = easter_date(date('Y', $date));
+    $easter_sunday = date('m-d', $easter);
+    $easter_friday = date('m-d', strtotime('-2 day', $easter));
+    $easter_monday = date('m-d', strtotime('+1 day', $easter));
+    $ascension_day = date('m-d', strtotime('+39 day', $easter));
+    $pentecost_monday = date('m-d', strtotime('+50 day', $easter));
+    $corpus_christi = date('m-d', strtotime('+60 day', $easter));
+
+    $public_holidays_germany = array(
+      array('01-01', 'New Year\'s Day'),
+      array('01-06', 'Epiphany'),
+      array($easter_friday, 'Good Friday'),
+      array($easter_sunday, 'Easter Sunday'),
+      array($easter_monday, 'Easter Monday'),
+      array('05-01', 'Labor Day'),
+      array($ascension_day, 'Ascension Day'),
+      array($pentecost_monday, 'Pentecost Monday'),
+      array($corpus_christi, 'Corpus Christi'),
+      //array('08-08', 'Peace Festival'),
+      array('08-15', 'Assumption Day'),
+      array('10-03', 'German Unity Day'),
+      array('10-31', 'Reformation Day'),
+      array('11-01', 'All Saints Day'),
+      //array('11-16', 'Repentance and Prayer Day'), //Second Wednesday before the First Advent
+      array('12-06', 'Saint Nicholas Day'),
+      array('12-25', 'Christmas Day'),
+      array('12-26', 'Second day of Christmas'),
+      array('12-31', 'New Year\'s Eve')
+    );
+    return $public_holidays_germany;
+}
+function calendar_menu_autocomplete ($string) {
+  global $user;
+  $response = array();
+  #who is the franchisetaker?
+  $query = db_query("SELECT nr.franchisetaker as uid
+    FROM nachhilfe_roles AS nr
+    WHERE nr.uid = :user;",
+    array(':user' => $user->uid));
+  $franchisetaker = $query->fetch();
+
+  $or = db_or();
+  $or->condition('ns.firstname','%' . db_like($string) . '%', 'LIKE');
+  $or->condition('ns.lastname','%' . db_like($string) . '%', 'LIKE');
+  $or->condition('ns.student_firstname','%' . db_like($string) . '%', 'LIKE');
+  $or->condition('ns.student_lastname','%' . db_like($string) . '%', 'LIKE');
+
+  $students = db_select('users','n');
+  $students->leftJoin('users_roles', 'ur', 'n.uid = ur.uid');
+  $students->leftJoin('nachhilfe_students', 'ns', 'n.uid = ns.uid');
+  $students->leftJoin('nachhilfe_roles', 'nr', 'n.uid = nr.uid');
+  $students->fields('ns', array('uid'));
+  $students->addExpression('Concat(ns.student_firstname, \' \',ns.student_lastname)', 'name');
+  $students->condition($or);
+  $students->condition('n.status', 1);
+  $students->condition('ur.rid', 7);
+
+  if((int)$user->uid !== 1 || (int)$user->uid !== 2) $students->condition('nr.franchisetaker', $franchisetaker->uid);
+  $students->orderBy('n.uid', 'DESC');
+  $students->range(0,8);
+  $students = $students->execute();
+  while($record = $students->fetchObject()) array_push($response, $record);
+  return drupal_json_output($response);
+}
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+function calendar_menu_callback ($node, &$form_state) {
+  global $user;
+  #if (!empty($_SESSION['calendar'][0])) $date = $_SESSION['calendar'][0];
+  #else $date = strtotime(date('Y-m-d'));
+
+  list($date, $settings, $groups, $events) = calendar_session();
+  $_SESSION['date'] = $date;
+  $_SESSION['settings'] = $settings;
+  $_SESSION['groups'] = $groups;
+  $_SESSION['events'] = $events;
+
+  if(!empty($form_state['build_info']['args'])){
+    list($year, $month, $day) = $form_state['build_info']['args'];
+    $day = explode('?', $day);
+    $date = date('Y-m-d', strtotime($year .'-'. $month .'-'. $day[0]) );
+  } else {
+    $date = date('Y-m-d');
+  }
+  $_SESSION['calendar'][0] = strtotime($date);
+
+  $user_groups = db_select('users', 'u');
+  $user_groups->leftJoin('nachhilfe_roles', 'nr', 'u.uid = nr.uid');
+  $user_groups->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+  $user_groups->fields('u', array('uid'));
+  $user_groups->condition('nr.franchisetaker', $user->uid, '=');
+  $user_groups->condition('ur.rid', 6, '=');
+  $user_groups = $user_groups->execute()->fetchAll();
+
+  #checkout groups/teachers if changes on (in case of teacher remove/delete pass the events to franchisetaker)
+  return drupal_get_form('calendar_form');
+}
+function calendar_menu () {
+  $items = array();
+  $items['calendar'] = array(
+    'title' => t('Calendar'),
+    #'page callback' => 'calendar_menu_callback',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('calendar_menu_callback'),
+    'access callback' => 'user_access',
+    'access arguments' => array('view calendar page'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['calendar/search'] = array(
+    'page callback' => 'calendar_menu_autocomplete',
+    'access callback' => 'user_access',
+    'access arguments' => array('view calendar page'),
+    'type' => MENU_CALLBACK
+  );
+
+  return $items;
+}
+?>

@@ -1,0 +1,32 @@
+top
+#4e5859
+#1382b0
+#0b8cc1 - under shadow on blue
+#a4a4a4 + inner shadow top- menu selected
+
+top account
+  #156b8f - hover
+  #6c747e; 
+  #a0a9b6; hover link
+
+tabs students
+#424648
+
+paar rows table maybe
+#f4f4f4 - grays
+
+#3cb878 - button ready (bevel & emboss)
+#f4f4f4 - boty
+#1381af - footer
+
+buttons
+#3cb878 - greens
+#1382b0 - bluus
+
+checkbox
+#d7d7d7 - non activ background
+
+text
+#424648 - normal
+#8a8a8a - select
+#cacaca - disabled

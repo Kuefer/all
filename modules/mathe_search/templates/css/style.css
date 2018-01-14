@@ -1,0 +1,57 @@
+/*.page-search .form-text {
+    max-width: 300px;
+    width: auto;
+}
+.page-search .form-item,
+.page-search .form-actions {
+    margin: 5px 0;
+}
+.page-search .settings-calendar,
+.page-search .list-caldav,
+.page-search .new-caldav {
+    margin: 10px 0;
+}
+*/
+#go-advanced-type{
+
+}
+#advanced-fields{
+  float:left;
+  margin-right:30px;
+}
+#mathe-search-form,
+#mathe-advanced-form,
+#mathe-advanced-results-form,
+#mathe-search-results-form{
+  border:1px solid lightgrey;
+  padding:10px;
+}
+#mathe-search-form{
+  float:left;
+  width:380px;
+  margin-bottom: 10px!important;
+}
+#mathe-advanced-form{
+  float:right;
+  width:510px;
+  margin-bottom: 10px!important;
+}
+#mathe-advanced-results-form,
+#mathe-search-results-form{
+  float:none;
+  clear:both;
+  margin-top:10px;
+}
+/*-----------------------------------------------------------------*/
+/* search result*/
+
+.search-result{
+  padding:10px;
+  margin:5px 0 5px 0;
+}
+.search-type{
+  color:dimgrey;
+}
+.search-title{
+  color:darkgreen;
+}

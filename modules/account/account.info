@@ -1,0 +1,11 @@
+name = Account
+type = Module
+description = User login/Password recovery
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+files[] = account.module
+files[] = /templates/page.tpl.php
+files[] = /templates/css/style.css
+

@@ -1,0 +1,43 @@
+<?php
+function account_init() {
+  #module_load_include('php', 'general', 'class/general');
+  ##require(drupal_get_path('module', 'general') . '/class/general.php');
+  drupal_add_css(drupal_get_path('module', 'account') . '/templates/css/style.css', 'module', 'all', false);
+  #drupal_add_js(drupal_get_path('module', 'account') . '/templates/js/script.js');
+  #drupal_add_js(drupal_get_path('theme', 'mathe') . '/js/jquery.maskedinput-1.3.js');
+}
+//---------------------------------------------------------------------------
+function account_permission() {
+	return array('view' => array('title' => t('Acces account page')));
+}
+function account_access($op, $node, $account) {
+  switch ($op) {
+    case 'view':
+      if (account_access('view account page', $account)) {
+        return NODE_ACCESS_ALLOW;
+      }
+    break;
+    default:
+      return NODE_ACCESS_IGNORE;
+    break;
+  }
+}
+function account_menu () {
+  $items = array();
+
+  $items['account'] = array(
+    'title' => 'account',
+    'page callback' => 'account_list',
+    #'access callback' => 'account_access',
+    'access arguments' => array('view account page'),
+  );
+
+
+  return $items;
+}
+//---------------------------------------------------------------------------
+function account_menu_alter(&$items) {
+  // Example - disable the page at node/add
+  #$items['user/account']['access callback'] = FALSE;
+}
+?>

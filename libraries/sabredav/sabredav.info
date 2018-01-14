@@ -1,0 +1,5 @@
+name = SabreDAV
+machine name = mathe-nachhilfe
+description = Provides an interface to the CalDAV, CardDAV
+version = 1
+files[php][] = autoload.php

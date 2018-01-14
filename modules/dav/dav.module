@@ -1,0 +1,75 @@
+<?php
+
+function dav_init() {
+  $library = libraries_load('sabredav');
+}
+//---------------------------------
+function dav_hook_info () {
+    return array('dav' => array('info' => t('CalDAV server Module.')));
+}
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+function dav_calendarserver() {
+  #module_load_include('inc', 'dav', 'includes/calendarserver');
+  module_load_include('inc', 'dav', 'includes/class_extensions');
+  _dav_calendarserver();
+}
+//----------------------------------------------------------------------------
+function dav_theme ($existing, $type, $theme, $path) {
+  return array(
+    'dav' =>  array(
+      'template' => 'page',
+      'path' => drupal_get_path('module', 'dav') . '/templates/',
+    )
+  );
+}
+function dav_menu() {
+  return array('dav' => array(
+    'title' => 'CalDAV server',
+    'page callback' => 'dav_calendarserver',
+    'page arguments' => array(1),
+    'access callback' => true,
+    'type' => MENU_NORMAL_ITEM
+  ));
+}
+
+function _dav_calendarserver() {
+  // Make sure this setting is turned on and reflect the root url for your WebDAV server.
+  // This can be for example the root / or a complete path to your server script
+  $baseUri = @url('dav', array('language' => FALSE)) . '/';
+
+  // Database
+  $pdo = Database::getConnection();
+  $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+
+  // Mapping PHP errors to exceptions
+  function exception_error_handler($errno, $errstr, $errfile, $errline ) {
+      throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+  }
+  set_error_handler("exception_error_handler");
+
+  // Backends
+  $authBackend = new Drupal_Sabre_DAV_Auth_Backend_PDO($pdo);
+  $principalBackend = new Drupal_Sabre_DAVACL_PrincipalBackend_PDO($pdo);
+  $calendarBackend = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+
+  // Directory tree
+  $tree = array(
+    new Sabre\DAVACL\PrincipalCollection($principalBackend),
+    new Sabre\CalDAV\CalendarRoot($principalBackend, $calendarBackend)
+  );
+
+  // The object tree needs in turn to be passed to the server class
+  $server = new Sabre\DAV\Server($tree);
+  $server->setBaseUri($baseUri);
+
+  // Authentication plugin
+  $server->addPlugin(new Sabre\DAV\Auth\Plugin($authBackend));
+  $server->addPlugin(new Sabre\CalDAV\Plugin());
+  $server->addPlugin(new Sabre\DAVACL\Plugin());
+  $server->addPlugin(new Sabre\DAV\Browser\Plugin());
+
+  // And off we go!
+  $server->exec();
+  exit();
+}

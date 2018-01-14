@@ -1,0 +1,49 @@
+.page-profile .wrap-fieldset{
+  border:1px solid #E6E9ED;
+  padding:10px;
+}
+
+.page-profile #user-info{
+  width:440px;
+  float:left;
+}
+.page-profile #profile-chart-form{
+  width:495px;
+  float:right;
+}
+
+.page-profile .padding-10{
+  padding:10px;
+}
+.page-profile .grey{
+  color:grey;
+}
+
+
+.page-profile #user-info a {
+  color: dodgerblue !important;
+}
+.page-profile #user-info a:hover {
+  color: royalblue !important;
+}
+
+.page-profile #edit-employee{
+  float:left;
+  clear:both;
+  margin-top:10px;
+  width:100%;
+}
+.page-profile #edit-password{
+  width:440px;
+  float:left;
+  clear:both;
+  margin-top:10px;
+}
+.page-profile .form-type-password-confirm label[for="edit-field"]{
+  display:none;
+}
+
+
+.page-profile .password-suggestions description{
+  display:none !important;
+}

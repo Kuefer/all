@@ -1,0 +1,11 @@
+name = General
+type = Module
+description = Nachhilfe General.
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+files[] = general.module
+files[] = /templates/page.tpl.php
+files[] = /templates/css/style.css
+

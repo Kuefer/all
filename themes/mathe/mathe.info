@@ -1,0 +1,23 @@
+name = Mathe-Nachhilfe
+description = Custom theme for Mathe-Nachhilfe
+package = Education
+version = VERSION
+core = 7.x
+engine = phptemplate
+
+stylesheets[all][] = css/reset.css
+stylesheets[all][] = css/layout.css
+stylesheets[all][] = css/style.css
+stylesheets[all][] = css/colors.css
+stylesheets[print][] = css/print.css
+
+scripts[] = js/script.js
+
+regions[header] = Header
+regions[sidebar_tabs] = Sidebar Tabs
+regions[sidebar_left] = Sidebar Left
+regions[sidebar_right] = Sidebar Right
+regions[content] = Content
+regions[footer] = Footer
+
+

@@ -1,0 +1,1392 @@
+<?php
+use Sabre\VObject;
+function employees_init() {
+  drupal_add_css(drupal_get_path('module', 'employees') . '/templates/css/style.css', 'module', 'all', false);
+  drupal_add_js(drupal_get_path('module', 'employees') . '/templates/js/script.js');
+  drupal_add_js(drupal_get_path('theme', 'mathe') . '/js/jquery.maskedinput-1.3.js');
+}
+//---------------------------------------------------------------------------
+function employees_create_form_submit ($form, &$form_state) {
+  include("includes/password.inc");
+  module_load_include('inc', 'calendar', 'include/class_extensions');
+  global $user;
+  $phones = array();
+  $emails = array();
+  $def_roles = array(4 => t('Franchisetaker'), 5 => t('Secretary'), 6=> t('Teacher'));
+  $pdo = Database::getConnection();
+  $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+
+  $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+  $values = new StdClass();
+  $values->pass = user_password(6);
+
+  $values->uid  = $form_state['values']['employees']['employee']['field']['value'];
+  $values->firstname  = ucfirst(trim($form_state['values']['employees']['name']['firstname']));
+  $values->lastname = ucfirst(trim($form_state['values']['employees']['name']['lastname']));
+  $values->street = $form_state['values']['employees']['address']['street'];
+  $values->city = ucfirst(trim($form_state['values']['employees']['address']['city']));
+  $values->zip = $form_state['values']['employees']['address']['zip'];
+  $values->birthday = $form_state['values']['employees']['about']['birthday'];
+  $values->gender = $form_state['values']['employees']['about']['gender'];
+  $values->role = $form_state['values']['employees']['about']['role'];
+
+  $db_data = array(
+    'firstname' => $values->firstname,
+    'lastname' => $values->lastname,
+    'street' => $values->street,
+    'city' => $values->city,
+    'zip' => $values->zip,
+    'birthday' => strtotime($values->birthday),
+    'gender' => $values->gender,
+  );
+//------------------------------
+//------------------------------
+  if(isset($form_state['values']['employees']['password']['repeat_password']['field']) )
+  $new_pass = $form_state['values']['employees']['password']['repeat_password']['field'];
+  else $new_pass = null;
+
+//------------------------------
+  #['input']['employees']['phone'][0]['field']['text']
+
+  foreach ($form_state['input']['employees']['email'] as $i => $mail) {
+    $mail['field']['text'] = strtolower(preg_replace('/\s+/', '', $mail['field']['text']));
+    if (strlen($mail['field']['text']) !== 0 && valid_email_address($mail['field']['text'])) array_push($emails, (object)$mail['field']);
+  }
+  if (empty($emails)) return form_set_error('email', t('Please enter a valid E-mail addres.'));
+
+  foreach ($form_state['input']['employees']['phone'] as $i => $phone) {
+    if (!empty($phone['field']['text'])) array_push($phones, (object)$phone['field']);
+  }
+  if (empty($phones)) return form_set_error('email', t('Please enter a valid phone addres.'));
+
+  #little form validation
+  if (empty($values->firstname) && empty($values->lastname) && empty($emails)) {
+    return form_set_error('employees', t('First name, Last name and at least one Email address is required.'));
+  }
+  foreach ($emails as $i => $mail) {
+    $exists = user_load_by_mail($mail->text);
+    if (!empty($exists)) {
+      if ($exists->uid !== $values->uid) unset($emails[$i]);
+      if (empty($emails)) return form_set_error('email', t('Email already registered.'));
+    }
+  }
+//------------------------------
+  #register user
+  $email_raw = $emails;
+  $email_raw = array_pop($email_raw);
+
+  try {
+    if (!empty($values->uid)) { #update
+      $account = user_load($values->uid);
+      $account->uid = $values->uid;
+      if(!empty($new_pass)) $account->pass = user_hash_password($new_pass);
+      $account->status = 1;
+      $account->name = $values->firstname . ' ' . $values->lastname;
+      $account->mail = $email_raw->text;
+      $account->init = $email_raw->text;
+      $account->roles = array(DRUPAL_AUTHENTICATED_RID => 'authenticated user', $values->role => $def_roles[$values->role]);
+      $registered = user_save($account);
+    }
+    else { #new user
+      $account = new StdClass();
+      $account->status = 1;
+      $account->name = $values->firstname . ' ' . $values->lastname;
+      $account->pass = user_hash_password($values->pass);
+      $account->mail = $email_raw->text;
+      $account->init = $email_raw->text;
+      $account->roles = array(DRUPAL_AUTHENTICATED_RID => 'authenticated user', $values->role => $def_roles[$values->role]);
+      $registered = user_save($account);
+    }
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+//------------------------------
+  #register user
+  try {
+    $franchisetaker = db_select('users', 'n');
+    $franchisetaker->leftJoin('nachhilfe_roles', 'nr', 'nr.uid = n.uid');
+    $franchisetaker->fields('nr', array('franchisetaker'));
+    $franchisetaker->fields('n', array('mail'));
+    $franchisetaker->condition('nr.uid', $user->uid);
+    $franchisetaker = $franchisetaker->execute()->fetch();
+/*-------------------------------------------------------------------------------------------*/
+    if (!empty($values->uid)) { #edit user
+      $nachhilfe_employees = db_update('nachhilfe_employees');
+      $nachhilfe_employees->fields($db_data);
+      $nachhilfe_employees->condition('uid', $values->uid);
+      $nachhilfe_employees->execute();
+
+      #update dav_users with new email and password
+      $calendar_user = array(
+        'username' => $registered->mail,
+        'uid' => $registered->uid
+      );
+      if(!empty($new_pass)) $calendar_user['digesta1'] = md5($registered->mail . ':SabreDAV:' . $new_pass);
+      $dav_users = db_update('dav_users');
+      $dav_users->fields($calendar_user);
+      $dav_users->condition('uid', $registered->uid);
+      $dav_users->execute();
+      #----
+
+      #update dav_principals with name and email
+      $calendar_principal = array(
+        'uri' => 'principals/' . $registered->mail,
+        'email' => $registered->mail,
+        'displayname' => $values->firstname . ' ' . $values->lastname,
+        'uid' => $registered->uid
+      );
+      $dav_principals = db_update('dav_principals');
+      $dav_principals->fields($calendar_principal);
+      $dav_principals->condition('uid', $registered->uid);
+      $dav_principals->execute();
+      #----
+
+      #update dav_calendarinstances with name and email
+      $calendar_principal = array(
+        'principaluri' => 'principals/' . $registered->mail,
+        'displayname' => $values->firstname . ' ' . $values->lastname
+      );
+      $dav_principals = db_update('dav_calendarinstances');
+      $dav_principals->fields($calendar_principal);
+      $dav_principals->condition('principaluri', 'principals/' . $registered->mail);
+      $dav_principals->execute();
+      #--
+
+      if((int)$values->role == 5) { #to secretary
+        #all the events will be moved to franchisetaker account
+        #so i need the franchisetaker calendarId
+        $dav_instances = db_select('dav_calendarinstances', 'dci');
+        $dav_instances->fields('dci', array('calendarid'));
+        $dav_instances->condition('dci.principaluri', 'principals/' . $franchisetaker->mail);
+        $fdci = $dav_instances->execute()->fetch();
+        #and user calendarid
+        $dav_instances = db_select('dav_calendarinstances', 'dci');
+        $dav_instances->fields('dci', array('calendarid'));
+        $dav_instances->condition('dci.principaluri', 'principals/' . $registered->mail);
+        $dci = $dav_instances->execute()->fetch();
+        #and switch
+        $dav_calendarobjects = db_update('dav_calendarobjects');
+        $dav_calendarobjects->fields(array('calendarid' => $fdci->calendarid));
+        $dav_calendarobjects->condition('calendarid', $dci->calendarid);
+        $dav_calendarobjects->execute();
+      }
+
+      if((int)$values->role == 4) { #to franchisetaker
+        $nachhilfe_role = db_update('nachhilfe_roles');
+        $nachhilfe_role->fields(array('franchisetaker'=>$registered->uid));
+        $nachhilfe_role->condition('uid', $registered->uid);
+        $nachhilfe_role->execute();
+      }
+
+      if((int)$values->role == 6) { #to teacher
+        $nachhilfe_role = db_update('nachhilfe_roles');
+        $nachhilfe_role->fields(array('franchisetaker'=>$franchisetaker->franchisetaker));
+        $nachhilfe_role->condition('uid', $registered->uid);
+        $nachhilfe_role->execute();
+      }
+
+    } # end edit user
+/*-------------------------------------------------------------------------------------------*/
+    else { #new user
+      $settings['user'] = $registered->uid;
+      $db_data['uid'] = $registered->uid;
+      $role['uid'] = $registered->uid;
+
+      $nachhilfe_employees = db_insert('nachhilfe_employees');
+      $nachhilfe_employees->fields(array_keys($db_data));
+      $nachhilfe_employees->values($db_data);
+      $nachhilfe_employees->execute();
+
+      /* newuser franchisetaker setup */
+      if((int)$values->role == 4) {
+        $role['franchisetaker'] = $registered->uid;
+      } else {
+        $role['franchisetaker'] = $franchisetaker->franchisetaker;
+      }
+
+      $nachhilfe_role = db_insert('nachhilfe_roles');
+      $nachhilfe_role->fields(array_keys($role));
+      $nachhilfe_role->values($role);
+      $nachhilfe_role->execute();
+
+      $query = db_insert('nachhilfe_settings');
+      $query->fields(array_keys($settings));
+      $query->values($settings);
+      $query->execute();
+
+      $calendar_user = array(
+        'username' => $registered->mail,
+        'digesta1' => md5($registered->mail . ':SabreDAV:' . $values->pass),
+        'uid' => $registered->uid
+      );
+      $dav_users = db_insert('dav_users');
+      $dav_users->fields(array_keys($calendar_user));
+      $dav_users->values($calendar_user);
+      $dav_users->execute();
+
+      $calendar_principal = array(
+        'uri' => 'principals/' . $registered->mail,
+        'email' => $registered->mail,
+        'displayname' => $values->firstname . ' ' . $values->lastname,
+        'uid' => $registered->uid
+      );
+
+      #principals/robertddan@gmail.com/calendar-proxy-read
+      #principals/robertddan@gmail.com/calendar-proxy-write
+
+      $dav_principals = db_insert('dav_principals');
+      $dav_principals->fields(array_keys($calendar_principal));
+      $dav_principals->values($calendar_principal);
+      $dav_principals->execute();
+
+      #if((int)$values->role == 4 || (int)$values->role == 6) {
+      $uid = new Sabre\VObject\UUIDUtil();
+      $principaluri = 'principals/' . $registered->mail;
+      $calendars = $CalDAV->createCalendar($principaluri, strtoupper($uid->getUUID()), array());
+      $dav_instances = db_update('dav_calendarinstances');
+      $dav_instances->fields(array(
+        'displayname' => $values->firstname . ' ' . $values->lastname,
+        'calendarcolor' => '#4986E7'
+      ));
+      $dav_instances->condition('calendarid', $calendars[0]);
+      $dav_instances->execute();
+      #}
+    }
+  }
+  catch (Exception $e) {
+    /*
+    user_delete($registered->uid);
+
+    $disable_roles = db_delete('nachhilfe_roles'); #no registration
+    $disable_roles->condition('uid', $registered->uid);
+    $disable_roles->execute();
+
+    $disable_employees = db_delete('nachhilfe_employees');
+    $disable_employees->condition('uid', $registered->uid);
+    $disable_employees->execute();
+
+    $disable_user = db_delete('users'); #no registration
+    $disable_user->condition('uid', $registered->uid);
+    $disable_user->execute();
+
+    $disable_users_roles = db_delete('users_roles'); #no registration
+    $disable_users_roles->condition('uid', $registered->uid);
+    $disable_users_roles->execute();
+    */
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+//------------------------------
+  /*setup phones and emails */
+  if (!empty($values->uid)) { #update
+    $disable_phones = db_update('nachhilfe_mails');
+    $disable_phones->fields(array('disabled' => 1));
+    $disable_phones->condition('uid', $values->uid);
+    if (!empty($phones)) $disable_phones->execute();
+
+    $disable_emails = db_update('nachhilfe_phones');
+    $disable_emails->fields(array('disabled' => 1));
+    $disable_emails->condition('uid', $values->uid);
+    if (!empty($emails)) $disable_emails->execute();
+  }
+  $phones_db = array();
+  foreach ($phones as $i => $phone) {
+    array_push($phones_db, array(
+        'uid' => (!empty($values->uid) ? $values->uid : $registered->uid),
+        'number' => $phone->text,
+        'type' => $phone->select
+      )
+    );
+  }
+
+  $emails_db = array();
+  foreach ($emails as $email) {
+    array_push($emails_db, array(
+          'uid' => (!empty($values->uid) ? $values->uid : $registered->uid),
+          'mail' => $email->text,
+          'type' => $email->select
+        )
+      );
+  }
+
+  try {
+    if (!empty($emails_db)) {
+      foreach ($emails_db as $email) {
+        $users_email = db_insert('nachhilfe_mails');
+        $users_email->fields(array_keys((array)$email));
+        $users_email->values((array)$email);
+        $users_email->execute();
+      }
+    }
+    if (!empty($phones_db)) {
+      foreach ($phones_db as $phone) {
+        $users_mobile = db_insert('nachhilfe_phones');
+        $users_mobile->fields(array_keys((array)$phone));
+        $users_mobile->values((array)$phone);
+        $users_mobile->execute();
+      }
+    }
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+//------------------------------
+//------------------------------
+  /* updated password email */
+  if(!empty($new_pass) && !empty($values->uid)) {
+    $params = array(
+      'subject' => "Your password has changed",
+      'body' => "<p>Hello, " . $values->firstname . ' ' . $values->lastname . "</p>" .
+        "<p>We wanted to let you know that your Mathe-Nachilfe password was changed.</p>" .
+        "<p>If you did not perform this action, you can recover access by entering " .
+        $email_raw->text . " into the form at <a href=\"http://" . $_SERVER['SERVER_NAME'] . "/user/password\">http://" . $_SERVER['SERVER_NAME'] . "/user/password.</a></p>"
+    );
+
+    try {
+      drupal_mail('employees', 'new_password', $email_raw->text, language_default(), $params, variable_get('site_mail', 'Mathe-Nachhilfe'), TRUE);
+    }
+    catch (Exception $e) {
+      return drupal_set_message($e->getMessage(), 'error');
+    }
+  }
+
+  /* new account email*/
+  if (empty($values->uid)) {
+    if($email_raw->text == 'service@mathe-nachhilfe.com') $email_role = 'Franchisetaker';
+    else $email_role = $def_roles[$values->role];
+
+    $params = array(
+      'subject' => "Your registration at Mathe-Nachhilfe",
+      'body' => "<p>Hello " . $values->firstname . ' ' . $values->lastname . ",</p>" .
+        "<p>A new user account as ". $email_role ." has been created for you at Mathe-Nachhilfe: <a href=" . $_SERVER['SERVER_NAME'] . ">" . $_SERVER['SERVER_NAME'] . "</a>.</p>" .
+        "<p>Your login details are as follows:</p>" .
+        "<span>E-mail: " . $email_raw->text . "</span>" .
+        "<br>" .
+        "<span>Password: " . $values->pass . "</span>" .
+        "<br>"
+    );
+
+    try {
+      drupal_mail('employees', 'new_employee', $email_raw->text, language_default(), $params, variable_get('site_mail', 'Mathe-Nachhilfe'), TRUE);
+    }
+    catch (Exception $e) {
+      return drupal_set_message($e->getMessage(), 'error');
+    }
+  }
+  //------------------------------
+  //------------------------------
+  #if (empty($values->uid)) drupal_set_message($email_raw->text."\n".$values->pass, 'warning');
+  //------------------------------
+  /* post message */
+  if (!empty($values->uid)) {
+     return drupal_set_message(t('Entry updated.'), 'status');
+  }
+  else {
+    return drupal_set_message(t('Entry created successfully.'), 'status');
+  }
+}
+function create_birthday_days_month_callback ($form, &$form_state) {
+    $starts_year = $form['employees']['birthday']['field']['date']['year']['#value'];
+    $starts_month = $form['employees']['birthday']['field']['date']['month']['#value'];
+    $day = drupal_map_assoc(range(1,date('t', strtotime($starts_year .'/'. $starts_month . '/10 00:00:00'))));
+    $form['employees']['birthday']['field']['date']['day']['#options'] = $day;
+
+    $commands[] = ajax_command_replace(
+                                '#create-employees-birthday-date-day',
+                                drupal_render($form['employees']['birthday']['field']['date']['day']));
+    return array('#type' => 'ajax', '#commands' => $commands);
+}
+function create_registration_days_month_callback ($form, &$form_state) {
+    $starts_year = $form['employees']['registration']['field']['date']['year']['#value'];
+    $starts_month = $form['employees']['registration']['field']['date']['month']['#value'];
+    $day = drupal_map_assoc(range(1,date('t', strtotime($starts_year .'/'. $starts_month . '/10 00:00:00'))));
+    $form['employees']['registration']['field']['date']['day']['#options'] = $day;
+
+    $commands[] = ajax_command_replace(
+                                '#create-employees-registration-date-day',
+                                drupal_render($form['employees']['registration']['field']['date']['day']));
+    return array('#type' => 'ajax', '#commands' => $commands);
+}
+function remove_employee_phone_submit ($form, &$form_state) {
+  $no = $form_state['triggering_element']['#parents'][2];
+  $field = array_search($no, $form_state['num_phones']);
+  unset($form_state['num_phones'][$field]);
+  $form_state['rebuild'] = true;
+}
+function remove_employee_email_submit ($form, &$form_state) {
+  $no = $form_state['triggering_element']['#parents'][2];
+  $field = array_search($no, $form_state['num_emails']);
+  unset($form_state['num_emails'][$field]);
+  $form_state['rebuild'] = true;
+}
+function add_one_more_employee_phone_submit ($form, &$form_state) {
+  $form_state['num_phones'][] = count($form_state['num_phones']);
+  $form_state['rebuild'] = true;
+}
+function add_one_more_employee_email_submit ($form, &$form_state) {
+  $form_state['num_emails'][] = count($form_state['num_emails']);
+  $form_state['rebuild'] = true;
+}
+//-------------------
+function employee_return_form_callback ($form, &$form_state) {
+  return $form['employees'];
+}
+function employees_create_form ($form, &$form_state, $employee = null) {
+  global $user;
+  $prepend = array('00','01','02','03','04','05','06','07','08','09');
+  $months = array_combine(range(1,12), array('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'));
+  $phone_options = array('Other', 'Home telephone', 'Office (work)', 'Mobilefunk');
+  $email_options = array('Other', 'Home e-mail', 'Office (work)');
+
+  if (!empty($employee)) {
+    $select = db_select('users', 'u');
+    $select->leftJoin('nachhilfe_employees', 'ne', 'u.uid = ne.uid');
+    $select->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+    $select->fields('u', array('uid', 'mail'));
+    $select->addField('ne','firstname','firstname');
+    $select->addField('ne','lastname','lastname');
+    $select->addField('ne','street','street');
+    $select->addField('ne','city','city');
+    $select->addField('ne','zip','zip');
+    $select->addField('ne','birthday','birthday');
+    $select->addField('ne','gender','gender');
+    $select->addField('u','created','created');
+    $select->addField('ur','rid','role');
+    $select->condition('u.uid', $employee);
+    $details = $select->execute()->fetchObject();
+
+    $emails = db_select('nachhilfe_mails', 'ue');
+    $emails->fields('ue');
+    $emails->condition('ue.uid', $employee);
+    $emails->condition('ue.disabled', 0);
+    $emails = $emails->execute()->fetchAll();
+
+    $phones = db_select('nachhilfe_phones', 'up');
+    $phones->fields('up');
+    $phones->condition('up.uid', $employee);
+    $phones->condition('up.disabled', 0);
+    $phones = $phones->execute()->fetchAll();
+  } else {
+    $details = null;
+    $emails = array();
+    $phones = array();
+  }
+
+//----------------------------------------------------
+//----------------------------------------------------
+
+  $form['employees'] = array(
+      '#tree' => true,
+      '#prefix' => '<table id="wrap-create-employee">',
+      '#suffix' => '</table>',
+  );
+//----------------------------------------------------
+  $form['employees']['employee']['field'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['employees']['employee']['field']['value'] = array(
+      '#type' => 'hidden',
+      '#default_value' => isset($details->uid) ? $details->uid:0,
+  );
+//----------------------------------------------------
+  $form['employees']['name'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['employees']['name']['firstname'] = array(
+      '#title' => 'First name ',
+      '#type' => 'textfield',
+      '#required' => true,
+      #'#default_value' => 'true',
+      '#default_value' => isset($details->firstname) ? $details->firstname: 'First',
+      '#size' => 36,
+      '#prefix' => '<td >',
+      #'#suffix' => '</td>',
+      '#attributes' => array('placeholder' => 'Georgi'),
+  );
+//----------------------------------------------------
+  /*$form['employees']['lastname']['field'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );*/
+  $form['employees']['name']['lastname'] = array(
+      '#title' => 'Last name',
+      '#type' => 'textfield',
+      '#required' => true,
+      #'#default_value' => 'true',
+      '#default_value' => isset($details->lastname) ? $details->lastname: 'Last',
+      '#size' => 28,
+      #'#prefix' => '<td >',
+      '#suffix' => '</td>',
+      '#attributes' => array('placeholder' => 'Vasile'),
+  );
+//----------------------------------------------------
+  $form['employees']['address'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['employees']['address']['street'] = array(
+      '#title' => t('Street and house number'), // Straße und Hausnummer (inkl. Anschriftenzusatz),
+      '#type' => 'textfield',
+      '#required' => true,
+      #'#default_value' => 'true',
+      '#default_value' => isset($details->street) ? $details->street:'Marienplatzstreet 10',
+      '#size' => 36,
+      '#prefix' => '<td>',
+      #'#suffix' => '</td>',
+      '#attributes' => array('placeholder' => t('Marienplatzstreet 10')),
+  );
+//----------------------------------------------------
+  $form['employees']['address']['city'] = array(
+      '#title' => t('City'),
+      '#type' => 'textfield',
+      '#required' => true,
+      #'#default_value' => 'true',
+      '#default_value' => isset($details->city) ? $details->city: 'Germering',
+      '#size' => 15,
+      '#attributes' => array('placeholder' => 'München'),
+  );
+//----------------------------------------------------
+  $form['employees']['address']['zip'] = array(
+      '#title' => t('ZIP.'),
+      '#type' => 'textfield',
+      '#required' => true,
+      #'#default_value' => '123456',
+      '#default_value' => isset($details->zip) ? $details->zip: '82110',
+      '#size' => 4,
+      #'#prefix' => '<td>',
+      '#suffix' => '</td>',
+      '#attributes' => array('placeholder' => '123456'),
+  );
+//----------------------------------------------------
+  $form['employees']['about'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['employees']['about']['birthday'] = array(
+    '#title' => t('Birthday'),
+    '#type' => 'textfield',
+    '#required' => true,
+    #'#default_value' => 'true',
+    '#default_value' => isset($details->birthday) ? date('d-m-Y',$details->birthday):'02-02-1999',
+    '#size' => 15,
+    '#attributes' => array('placeholder' => 'dd-mm-yyyy'),
+    '#prefix' => '<td>',
+  );
+//----------------------------------------------------
+  $form['employees']['about']['gender'] = array(
+    '#title' => t('Gender'),
+    '#type' => 'select',
+    '#empty_option' => t('None'),
+    '#options' => array(
+        0 => t('Männlich'),
+        1  => t('Weiblich'),
+    ),
+    '#required' => true,
+    '#default_value' => isset($details->gender) ? $details->gender : 0,
+  );
+//----------------------------------------------------
+  $form['employees']['about']['role'] = array(
+      '#title' => 'Role',
+      '#type' => 'select',
+      '#empty_option' => t('None'),
+      '#options' => array(
+          4 => t('Franchisetaker'),
+          5  => t('Secretary'),
+          6  => t('Teacher'),
+      ),
+      '#default_value' => isset($details->role) ? $details->role : 4,
+      '#required' => true,
+      #'#prefix' => '<td >',
+      '#suffix' => '</td>',
+  );
+//----------------------------------------------------
+  if (empty($form_state['num_phones']) || !isset($form_state['num_phones'])){
+    if (empty($phones)) $form_state['num_phones'] = [0];
+    else $form_state['num_phones'] = range(0,count($phones));
+  }
+
+  $num_phones = $form_state['num_phones'];
+  $form['employees']['phone']['header'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>',
+  );
+  $form['employees']['phone']['header']['title'] = array(
+    '#markup' => '<th><label>Phone <span class="form-required" title="This field is required.">*</span></label></th>',
+  );
+
+  foreach ($num_phones as $i) {
+    $select_value = count($phones) > $i ? $phones[$i]->type : 0;
+    $text_value = count($phones) > $i ? $phones[$i]->number : '';
+
+    $form['employees']['phone'][$i]['field'] = array(
+      '#prefix' => '<tr class="row-multiple-fields">',
+      '#suffix' => '</tr>'
+    );
+    $form['employees']['phone'][$i]['field']['select'] = array(
+      '#type' => 'select',
+      '#options' => $phone_options,
+      '#value' =>  $select_value,
+      #'#empty_option' => t('None'),
+      '#prefix' => '<td>',
+      #'#required' => true,
+      #'#title' => t('Phone type')
+    );
+
+    $form['employees']['phone'][$i]['field']['text'] = array(
+      '#type' => 'textfield',
+      '#attributes' => array('placeholder' => 'Phone'),
+      #'#value' => $text_value,
+      '#default_value' => (empty($text_value) ? '1111-11111-1111'  : $text_value),
+      #'#suffix' => '</td>',
+      '#size' => 40,
+      '#title' => t('Phone'),
+    );
+    if ($i > 0) {
+      $form['employees']['phone'][$i]['field']['phone_remove'] = array(
+          '#type' => 'submit',
+          '#value' => '',
+          '#name' => 'remove_phone_' . $i,
+          #'#prefix' => '<td>',
+          '#suffix' => '</td>',
+          '#limit_validation_errors' => array(),
+          '#submit' => array('remove_employee_phone_submit'),
+          '#attributes' => array('class' => array('submit-remove'), 'title'=>array('Remove phone')),
+          '#ajax' => array(
+            'callback' => 'employee_return_form_callback',
+            'wrapper' => 'wrap-create-employee'
+          )
+      );
+    }
+  } //end foreach
+
+  $form['employees']['phone'][0]['field']['text']['#required'] = true;
+  $form['employees']['phone']['button'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>'
+  );
+  $form['employees']['phone']['button']['add_phone'] = array(
+      '#type' => 'submit',
+      '#value' => t('Phone'),
+      '#attributes' => array('name'=>'add_phone', 'class' => array('submit-plus')),
+      '#prefix' => '<td>',
+      '#suffix' => '</td>',
+      '#limit_validation_errors' => array(),
+      '#submit' => array('add_one_more_employee_phone_submit'),
+      '#ajax' => array(
+        'callback' => 'employee_return_form_callback',
+        'wrapper' => 'wrap-create-employee'
+      )
+  );
+//----------------------------------------------------
+  if (empty($form_state['num_emails']) || !isset($form_state['num_emails'])){
+    if (empty($emails)) $form_state['num_emails'] = [0];
+    else $form_state['num_emails'] = range(0,count($emails));
+  }
+
+  $num_emails = $form_state['num_emails'];
+  $form['employees']['email']['header'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>',
+  );
+  $form['employees']['email']['header']['title'] = array(
+    '#markup' => '<th><label>Email <span class="form-required" title="This field is required.">*</span></label></th>',
+  );
+  foreach ($num_emails as $i) {
+    $select_value = count($emails) > $i ? $emails[$i]->type : '0';
+    $text_value = count($emails) > $i ? $emails[$i]->mail : '';
+
+    $form['employees']['email'][$i]['field'] = array(
+      '#prefix' => '<tr class="row-multiple-fields">',
+      '#suffix' => '</tr>'
+    );
+    $form['employees']['email'][$i]['field']['select'] = array(
+      '#type' => 'select',
+      '#options' => $email_options,
+      '#value' => $select_value,
+      '#default_value' => '0',
+      '#prefix' => '<td>',
+      //'#suffix' => '</th>'
+    );
+    $form['employees']['email'][$i]['field']['text'] = array(
+      '#type' => 'textfield',
+      '#attributes' => array('placeholder' => t('example@email.com')),
+      '#default_value' => (empty($text_value) ? 'example@email.com' : $text_value),
+      #'#value' => 'asd@asd.ro',
+      #'#suffix' => '</td>',
+      '#title' => t('E-mail'),
+      '#size' => 40,
+    );
+    if ($i > 0) {
+      $form['employees']['email'][$i]['field']['email_remove'] = array(
+        '#type' => 'submit',
+        '#value' => '',
+        '#name' => 'remove_email_' . $i,
+        #'#prefix' => '<td>',
+        '#suffix' => '</td>',
+        '#limit_validation_errors' => array(),
+        '#attributes' => array('class' => array('submit-remove'), 'title'=>array('Remove e-mail')),
+        '#submit' => array('remove_employee_email_submit'),
+        '#ajax' => array(
+          'callback' => 'employee_return_form_callback',
+          'wrapper' => 'wrap-create-employee'
+        )
+      );
+    }
+  } //end foreach
+
+  $form['employees']['email'][0]['field']['text']['#required'] = true;
+  $form['employees']['email']['button'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>'
+  );
+  $form['employees']['email']['button']['add_email'] = array(
+    '#type' => 'submit',
+    '#value' => t('E-mail'),
+    '#required' => $i == 0 ? true: false,
+    '#attributes' => array('name'=>'add_email', 'class' => array('submit-plus')),
+    '#prefix' => '<td>',
+    '#suffix' => '</td>',
+    '#limit_validation_errors' => array(),
+    '#submit' => array('add_one_more_employee_email_submit'),
+    '#ajax' => array(
+      'callback' => 'employee_return_form_callback',
+      'wrapper' => 'wrap-create-employee'
+    )
+  );
+//----------------------------------------------------
+  $form['employees']['first-save']['row'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['employees']['first-save']['row']['button'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save'),
+      '#prefix' => '<td>',
+      '#suffix' => '</td>',
+      '#attributes' => array('class' => array('submit-save')),
+      '#submit' => array('employees_create_form_submit'),
+  );
+//----------------------------------------------------
+  if(!empty($details)){
+    $form['employees']['password']= array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+    );
+    $form['employees']['password']['repeat_password'] = array (
+      '#type' => 'fieldset',
+      '#title' =>  t('Change password'),
+      '#collapsible' => false,
+      '#collapsed' => false,
+      '#prefix' => '<td><br><br>',
+      '#suffix' => '<br></td>',
+    );
+    $form['employees']['password']['repeat_password']['field'] = array(
+      '#title' => t('Repeat new password'),
+      '#type' => 'password_confirm',
+      #'#required' => true,
+      '#size' => 36,
+      '#attributes' => array('placeholder' => t('*****')),
+    );
+//----------------------------------------------------
+//----------------------------------------------------
+    $form['employees']['save']['row'] = array(
+        '#prefix' => '<tr>',
+        '#suffix' => '</tr>',
+    );
+    $form['employees']['save']['row']['button'] = array(
+        '#type' => 'submit',
+        '#value' => t('Save'),
+        '#prefix' => '<td>',
+        '#suffix' => '</td>',
+        '#attributes' => array('class' => array('submit-save')),
+        '#submit' => array('employees_create_form_submit'),
+    );
+  }
+//----------------------------------------------------
+  return $form;
+}
+//---------------------------------------------------------------------------
+function employees_substitute_teacher_submit ($form, &$form_state) {
+  try{
+    foreach($form_state['values']['wrap']['substitute'] as $i => $event){
+      $address = db_select('users', 'n');
+      $address->fields('n', array('mail'));
+      $address->condition('n.uid', $event['option']);
+      $address = $address->execute()->fetchObject();
+
+      $teacher = db_select('dav_calendarinstances', 'n');
+      $teacher->fields('n', array('calendarid'));
+      $teacher->condition('n.principaluri', 'principals/' . $address->mail );
+      $teacher = $teacher->execute()->fetchObject();
+
+      $dav_objects = db_update('dav_calendarobjects');
+      $dav_objects->fields(array('calendarid' => $teacher->calendarid));
+      $dav_objects->condition('uid', $i);
+      $dav_objects->execute();
+    }
+  }  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+  
+  #return drupal_goto('/employees/disable/' . $event['option']);
+  return drupal_goto('/employees/list/');
+  
+}
+function employees_disable_submit_no ($form, &$form_state) {
+  drupal_goto('/employees');
+}
+function employees_disable_submit_yes ($form, &$form_state) {
+  #module_load_include('inc', 'calendar', 'include/class_extensions');
+  #$pdo = Database::getConnection();
+  #$pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+  #$CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+
+  $user = $form_state['values']['employee'];
+  #return dpm($uid);
+/*
+  $franchisetaker = db_select('nachhilfe_roles', 'n');
+  $franchisetaker->fields('n', array('franchisetaker'));
+  $franchisetaker->condition('n.uid', $uid);
+  $franchisetaker = $franchisetaker->execute()->fetch();
+
+  $fran_mail = db_select('users', 'n');
+  $fran_mail->fields('n', array('mail'));
+  $fran_mail->condition('n.uid', $franchisetaker->franchisetaker);
+  $fran_mail = $fran_mail->execute()->fetch();
+
+  $user_mail = db_select('users', 'n');
+  $user_mail->fields('n', array('mail'));
+  $user_mail->condition('n.uid', $uid);
+  $user_mail = $user_mail->execute()->fetch();
+
+  $fcalendarid = db_select('dav_calendarinstances', 'n');
+  $fcalendarid->fields('n', array('calendarid'));
+  $fcalendarid->condition('n.principaluri', 'principals/' . $fran_mail->mail);
+  $fcalendarid = $fcalendarid->execute()->fetch();
+
+  $calendarid = db_select('dav_calendarinstances', 'n');
+  $calendarid->fields('n', array('calendarid'));
+  $calendarid->condition('n.principaluri', 'principals/' . $user_mail->mail);
+  $calendarid = $calendarid->execute()->fetch();
+*/
+  try {
+    #if is a franchisetaker move all the employees/students to superuser
+    #if ($franchisetaker->franchisetaker == $uid) {
+      #$franchisetaker = db_delete('nachhilfe_roles');
+      #$franchisetaker->condition('uid', $uid);
+      #$franchisetaker = $franchisetaker->execute();
+
+      #$dav_objects = db_update('nachhilfe_roles');
+      #$dav_objects->fields(array('franchisetaker' => 1));
+      #$dav_objects->condition('franchisetaker', $uid);
+      #$dav_objects->execute();
+    #}
+
+    #$dav_objects = db_update('dav_calendarobjects');
+    #$dav_objects->fields(array('calendarid' => $fcalendarid->calendarid));
+    #$dav_objects->condition('calendarid', $calendarid->calendarid);
+    #$dav_objects->execute();
+
+    #$disable_dav_user = db_delete('dav_users');
+    #$disable_dav_user->condition('uid', $uid);
+    #$disable_dav_user->execute();
+
+    #$disable_principals = db_delete('dav_principals');
+    #$disable_principals->condition('uid', $uid);
+    #$disable_principals->execute();
+
+    #$disable_instances = db_delete('dav_calendarinstances');
+    #$disable_instances->condition('principaluri', 'principals/' . $user_mail->mail);
+    #$disable_instances->execute();
+
+    $disable_user = db_update('users');
+    $disable_user->fields(array('status' =>0));
+    $disable_user->condition('uid', $user->uid);
+    $disable_user->execute();
+
+    #$disable_phones = db_delete('nachhilfe_phones');
+    #$disable_phones->fields(array('disabled' =>1));
+    #$disable_phones->condition('uid', $uid);
+    #$disable_phones->execute();
+
+    #$disable_mails = db_delete('nachhilfe_mails');
+    #$disable_mails->fields(array('disabled' =>1));
+    #$disable_mails->condition('uid', $uid);
+    #$disable_mails->execute();
+
+
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+
+  return drupal_goto('employees');
+}
+function employees_disable_form ($form, &$form_state, $employee = null) {
+  $select = db_select('users', 'u');
+  $select->leftJoin('nachhilfe_employees', 'ud', 'u.uid = ud.uid');
+  $select->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+  $select->leftJoin('role', 'r', 'ur.rid = r.rid');
+  $select->leftJoin('nachhilfe_roles', 'nr', 'u.uid = nr.uid');
+  $select->fields('u', array('uid', 'mail'));
+  $select->addField('nr','franchisetaker','franchisetaker');
+  $select->addField('ud','firstname','firstname');
+  $select->addField('ud','lastname','lastname');
+  $select->addField('r','name','role');
+  $select->condition('u.uid', $employee);
+  $employee = $select->execute()->fetchObject();
+
+#--------------------------------------------------------------------
+  #substitute teacher form /git
+#--------------------------------------------------------------------
+  $select = db_select('nachhilfe_employees', 'e');
+  $select->leftJoin('nachhilfe_roles', 'nr', 'e.uid = nr.uid');
+  $select->leftJoin('users_roles', 'ur', 'e.uid = ur.uid');
+  $select->leftJoin('users', 'u', 'e.uid = u.uid');
+  #$select->fields('e', array('firstname', 'lastname'));
+  $select->addField('e','uid','uid');
+  $select->addField('e','firstname','firstname');
+  $select->addField('e','lastname','lastname');
+  
+  $select->condition('nr.franchisetaker', $employee->franchisetaker, '=');
+  $select->condition('u.uid', $employee->franchisetaker, '=');
+  $select->condition('e.uid', $employee->uid, '!=');
+  $select->condition('ur.rid', array(6,4), 'IN');
+  $select->condition('u.status', 1);
+  
+  $otherTeachers = $select->execute()->fetchAll();
+
+  $groups = array();
+
+  module_load_include('inc', 'dav', 'includes/class_extensions');
+  $pdo = Database::getConnection();
+  $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+
+  $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+  $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
+
+  $teacherEvents = array();
+  $date = strtotime(date('Y-m-d'));
+  $filter = array(
+    'name' => 'VCALENDAR',
+    'is-not-defined' => false,
+    'time-range' => null,
+    'prop-filters' => array(),
+    'comp-filters' => array(
+      array(
+        'name' => 'VEVENT',
+        'is-not-defined' => false,
+        'prop-filters' => array(),
+        'comp-filters' => array(),
+        'time-range' => null,
+      ),
+    ),
+  );
+
+  foreach($calendars as $calendar){
+    $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filter);
+    foreach($icss as $j => $ics){
+      $rrule = array();
+      $event = $CalDAV->getCalendarObject(array($calendar['id'][0],0), $ics);
+      $data = VObject\Reader::read($event['calendardata']);
+
+      #verify date if is today event or between, for repeated events.
+      $start = strtotime((string) $data->VEVENT->DTSTART);
+      #$end = strtotime((string) $data->VEVENT->DTEND);
+
+      #get student name, date from futhere events
+      if ($start >= strtotime(date('Y-m-d H:i:s', $date))) {
+        array_push($teacherEvents, (object) array(
+          'id' => $event['id'],
+          'calendarid' => $calendar['id'][0],
+          'teacher_name' => $employee->firstname . ' ' . $employee->lastname,
+          'color' => $calendar['{http://apple.com/ns/ical/}calendar-color'],
+          #'uri' => $event['uri'],
+          'uid' => (string) $data->VEVENT->UID,
+          'start' => strtotime((string) $data->VEVENT->DTSTART),
+          'end' => strtotime((string) $data->VEVENT->DTEND),
+          'summary' => (string) $data->VEVENT->SUMMARY,
+          'description' => (string) $data->VEVENT->DESCRIPTION,
+          'rrule' => $rrule,
+          'student_name' => (string) $data->VEVENT->ATTENDEE['CN'],
+          'student_mail' => (string) $data->VEVENT->ATTENDEE['EMAIL']
+        ));
+
+      }
+
+    }
+  }
+  
+  if(!empty($teacherEvents)){
+    #build a string with select/options for substitute teachers
+    $selectSubstitute = array();
+    foreach($otherTeachers as $option){
+      $selectSubstitute[$option->uid] = $option->firstname . ' ' . $option->lastname;
+    }
+
+    $switch['wrap'] = array(
+      '#theme' => 'markup',
+      '#prefix' => '<div class="messages warning">Please switch all the events to another teacher</div><table class="table table-substitute">',
+      '#suffix' => '</table>',
+      '#tree' => true,
+    );
+    $switch['wrap']['header'] = array(
+      '#type' => 'markup',
+      '#markup' => '<th><b>' . t('Student') . '</b></th>
+        <th><b>' . t('Class starts') . '</b></th>
+        <th><b>' . t('Class ends') . '</b></th>
+        <th><b>' . t('Replacer') . '</b></th>',
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+    );
+    foreach ($teacherEvents as $i => $classHour) {
+      #sabre-vobject-87828e20-425e-465d-82d4-d773e8a14d5e
+      #sabre-vobject-87828e20-425e-465d-82d4-d773e8a14d5e
+      $switch['wrap']['substitute'][$classHour->uid]['event']= array(
+        '#type' => 'markup',
+        '#markup' => '<td>' . (($classHour->student_name == '')? 'None': $classHour->student_name) . '</td>'
+          . '<td>' .date('H:i l d/m/Y', $classHour->start) . '</td>'
+          . '<td>' .date('H:i l d/m/Y', $classHour->end) . '</td>',
+        '#prefix' => '<tr>',
+      );
+      $switch['wrap']['substitute'][$classHour->uid]['option'] = array(
+        '#type' => 'select',
+        '#empty_option' => t('None'),
+        '#options' => $selectSubstitute,
+        '#required' => true,
+        '#prefix' => '<td>',
+        '#suffix' => '</td></tr>',
+      );
+    }
+    $switch['wrap']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save'),
+      '#attributes' => array('class' => array('submit-save')),
+      '#submit' => array('employees_substitute_teacher_submit'),
+      '#prefix' => '<tr><td colspan="4">',
+      '#suffix' => '</td></tr>',
+    );
+  
+    return $switch;
+  }
+/*
+    $switch['teacher'] = array(
+      '#type' => 'container',
+      '#prefix' => '<table>',
+      '#suffix' => '</table>'
+    );
+    $switch['teacher']['header'] = array(
+      '#type' => 'markup',
+      '#markup' => '<th>Teacher</th><th>Student</th><th>Day</th><th>Day</th>',
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>'
+    );
+    foreach($teacherEvents as $i => $classHour) {
+      $switch['teacher']['header'][$i]['name'] = array(
+        '#type' => 'markup',
+        '#markup' => '<p>' . $employee->firstname . ' ' . $employee->lastname . ' (' .$employee->role  . ') </p>',
+        '#prefix' => '<div>',
+        '#suffix' => '</div></br>'
+      );
+    }
+*/
+#--------------------------------------------------------------------
+#-------------------------------------------------------------------->
+
+  if (empty($employee->uid)) {
+    $build['no-employee-selected'] = array(
+      '#type' => 'markup',
+      '#markup' => t('<p>No employee selected from the list..</p>'),
+    );
+    return $build;
+  }
+
+  $build['disable'] = array(
+    '#type' => 'container',
+  );
+  $build['disable']['employee'] = array(
+    '#type' => 'value',
+    '#value' =>$employee
+  );
+  $build['disable']['name'] = array(
+    '#type' => 'markup',
+    '#markup' => '<h3>' . $employee->firstname . ' ' . $employee->lastname . ' (' .$employee->role  . ')</h3>',
+  );
+  $build['disable']['question'] = array(
+    '#type' => 'markup',
+    #'#markup' => t('Are you sure you want to remove selected employee?') . '</br></br>',
+    '#markup' => t('Are you sure you want to disable user account?') . '</br></br>',
+  );
+  $build['disable']['yes'] = array(
+    '#type' => 'submit',
+    '#value' => t('Yes'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('employees_disable_submit_yes'),
+    '#suffix' => '&nbsp;&nbsp;'
+  );
+  $build['disable']['no'] = array(
+    '#type' => 'submit',
+    '#value' => t('No'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('employees_disable_submit_no'),
+    #'#ajax' => array('employees_disable_submit_no'),
+  );
+
+  return $build;
+}
+function employees_enable_form ($form, &$form_state, $employee = null) {
+  if (empty($employee)) return drupal_goto('employees');
+  try {
+    $enable_user = db_update('users');
+    $enable_user->fields(array('status' =>1));
+    $enable_user->condition('uid', $employee);
+    $enable_user->execute();
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+
+  return drupal_goto('employees');
+}
+//---------------------------------------------------------------------------
+function employees_redirect() {
+  return drupal_goto('/employees/create/');
+}
+function employees_list() {
+  global $user;
+  $rows = array();
+  $build = array();
+  #$gender = array(t('männlich'), t('weiblich'));
+  $query = db_select('nachhilfe_roles', 'nr');
+  $query->fields('nr');
+  $query->condition('nr.uid', $user->uid);
+  $nr = $query->execute()->fetch();
+
+  $header = array(
+    #array('data' => t('uid'), 'field' => 'u.uid', 'sort' => 'asc'),
+    array('data' => t('firstname'), 'field' => 'ud.firstname', 'sort' => 'title'),
+    array('data' => t('lastname'), 'field' => 'ud.lastname', 'sort' => 'title'),
+    #array('data' => t('street'), 'field' => 'ud.street', 'sort' => 'title'),
+    array('data' => t('city'), 'field' => 'ud.city', 'sort' => 'title'),
+    array('data' => t('birthday'), 'field' => 'ud.birthday', 'sort' => 'asc'),
+    #array('data' => t('gender'), 'field' => 'ud.gender', 'sort' => 'title'),
+    array('data' => t('registered'), 'field' => 'u.created', 'sort' => 'asc'),
+    array('data' => t('role'), 'field' => 'r.name', 'sort' => 'title'),
+    array('data' => t('mail'), 'field' => 'u.mail', 'sort' => 'title'),
+    array('data' => t('actions')),
+  );
+
+  $select = db_select('users', 'u')
+    ->extend('TableSort')->orderByHeader($header)
+    ->extend('PagerDefault');
+  $select->leftJoin('nachhilfe_employees', 'ud', 'u.uid = ud.uid');
+  $select->leftJoin('nachhilfe_roles', 'nr', 'u.uid = nr.uid');
+  $select->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+  $select->leftJoin('role', 'r', 'ur.rid = r.rid');
+  $select->fields('u', array('uid'));
+  $select->addField('u','uid','uid');
+  $select->addField('u','status','status');
+  $select->addField('ud','firstname','firstname');
+  $select->addField('ud','lastname','lastname');
+  #$select->addField('ud','street','street');
+  $select->addField('ud','city','city');
+  $select->addField('ud','birthday','birthday');
+  #$select->addField('ud','gender','gender');
+  $select->addField('u','created','created');
+  $select->addField('r','name','role');
+  $select->addField('u','mail','mail');
+  #$select->condition('u.status', 0, '>');
+  $select->condition('r.rid', array(4,5,6), 'IN');
+  if((int)$user->uid !== 1 && (int)$user->uid !== 2) $select->condition('nr.franchisetaker', $nr->franchisetaker);
+  $entries = $select->execute()->fetchAll();
+
+  if (empty($entries)) {
+    $build['message'] = array(
+      '#type' => 'markup',
+      '#markup' => t('No content available.'),
+    );
+    /*
+    $build['redirect'] = array(
+      '#type' => 'submit',
+      '#value' => t('Create'),
+      '#attributes' => array('class' => array('submit-save')),
+      '#submit' => array('employees_redirect'),
+      '#prefix' => '<br><br>'
+    );
+    */
+    return $build;
+  }
+
+  foreach ($entries as $entry) {
+    $rows[] = array(
+      'firstname' => $entry->firstname,
+      'lastname' => $entry->lastname,
+      'city' => ucfirst($entry->city),
+      'birthday' => date('Y-m-d', $entry->birthday),
+      'created' => date('Y-m-d', $entry->created),
+      'role' => $entry->role,
+      'E-mail' => $entry->mail,
+      'actions' => l(t('Profile'), 'profile/' . $entry->uid)
+      . '&nbsp;|&nbsp;'
+      . l(t('Edit'), 'employees/create/' . $entry->uid)
+      . ($entry->uid !== $user->uid && $entry->uid !== $nr->franchisetaker? '&nbsp;|&nbsp;'
+         . ($entry->status === '1'? l(t('Disable'), 'employees/disable/' . $entry->uid) : l(t('Enable'), 'employees/enable/' . $entry->uid))
+      : '')
+    );
+  }
+
+  $build['table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#attributes' => array (
+      'class' => array('list-employees-table table'),
+    ),
+  );
+  $build['pager'] = array(
+    '#theme' => 'pager',
+  );
+
+  return $build;
+}
+//---------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+function employees_block_info () {
+  $blocks['menu'] = array(
+    'info' => t('(block left) Employees menu '),
+    'cache' => DRUPAL_NO_CACHE
+  );
+  return $blocks;
+}
+/*
+function employees_block_view ($delta = '') {
+  switch ($delta) {
+    case 'menu':
+      $block = array(
+        'subject' => t('Menu'),
+        'content' => drupal_get_form('employees_menu_block'),
+      );
+    break;
+    default:
+        $block = null;
+    break;
+  }
+  return $block;
+}
+function employees_menu_block() {
+  $form['menu']['list'] = array(
+    '#type' => 'markup',
+    '#markup' => 0,
+    '#prefix' => '<p>',
+    '#suffix' => '</p>'
+  );
+  $form['menu']['add'] = array(
+    '#type' => 'markup',
+    '#markup' => 1,
+    '#prefix' => '<p>',
+    '#suffix' => '</p>'
+  );
+  return $form;
+}
+*/
+//---------------------------------------------------------------------------
+function employees_theme () {
+  $templates = drupal_get_path('module', 'employees') . '/templates/';
+  $items['no-employees'] = array(
+    'template' => 'no-employees',
+    'path' => $templates,
+  );
+  return $items;
+}
+//---------------------------------------------------------------------------
+function employees_permission () {
+	return array('view employees page' => array('title' => t('Acces employees page')));
+}
+function employees_access($op, $node, $account) {
+  switch ($op) {
+    case 'view':
+      if (user_access('view employees page', $account)) {
+        return NODE_ACCESS_ALLOW;
+      }
+    break;
+    default:
+      return NODE_ACCESS_IGNORE;
+    break;
+  }
+}
+function employees_menu () {
+  $items = array();
+
+  $items['employees'] = array(
+    'title' => 'Employees',
+    'page callback' => 'employees_list',
+    'page arguments' => array(),
+    'access callback' => 'user_access',
+    'access arguments' => array('view employees page'),
+    'type' => MENU_NORMAL_ITEM
+  );
+  $items['employees/list'] = array(
+    'title' => 'List',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  $items['employees/create'] = array(
+    'title' => 'Add entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('employees_create_form', 2),
+    'access callback' => 'user_access',
+    'access arguments' => array('view employees page'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -9,
+  );
+  /*
+  $items['employees/update'] = array(
+    'title' => 'Update entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('employees_update_form', 2),
+    'access callback' => TRUE,
+    #'type' => MENU_LOCAL_ACTION,
+    'type' => MENU_LOCAL_ACTION,
+    'weight' => -5,
+  );
+  */
+  $items['employees/disable'] = array(
+    'title' => 'Disable entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('employees_disable_form', 2),
+    'access callback' => 'user_access',
+    'access arguments' => array('view employees page'),
+    #'type' => MENU_CALLBACK,
+    'type' => MENU_LOCAL_ACTION,
+  );
+  $items['employees/enable'] = array(
+    'title' => 'Disable entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('employees_enable_form', 2),
+    'access callback' => 'user_access',
+    'access arguments' => array('view employees page'),
+    #'type' => MENU_CALLBACK,
+    'type' => MENU_LOCAL_ACTION,
+  );
+
+
+  return $items;
+}
+//---------------------------------------------------------------------------
+// Implementation of hook_mail()
+function employees_mail ($key, &$message, $params){
+  switch ($key){
+    case 'new_password':
+      $message['subject'] = $params['subject'];
+      $message['body'] = array($params['body']);
+    break;
+    case 'new_employee':
+      $message['subject'] = $params['subject'];
+      $message['body'] = array($params['body']);
+    break;
+  }
+}
+//-------------------
+?>

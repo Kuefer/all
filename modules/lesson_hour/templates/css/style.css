@@ -1,0 +1,173 @@
+#chart-form,
+#schoolbook-form,
+#lessons-form,
+#mark-form,
+#remark-form,
+#remarks-list,
+#catalog-form{
+  border:1px solid #E6E9ED;
+  padding:10px;
+}
+
+/*tabs-student*/
+.lesson-student{
+  background-color:transparent !important;
+  color:#fff !important;
+  font-size:1.3em !important;
+  border:none !important;
+  border-right:1px solid #fff !important;
+  padding:17px 40px !important;
+  margin:0px !important;
+}
+/*end tabs-student*/
+
+/*remarks-list*/
+#remarks-list{
+  float:left;
+  clear:both;
+  margin-top:10px;
+  width:938px;
+}
+#remarks-list .checked{
+  background-image:url(../img/checked.png);
+  background-repeat:no-repeat;
+  background-position:center center;
+  background-size:20px 20px;
+  height:20px;
+  width:20px !important;
+}
+/*end remarks-list*/
+
+/*form remark-mark*/
+#remark-form .form-item{
+  margin:0px;
+  margin-right:5px;
+  padding:0px;
+}
+/*end remark-mark*/
+
+/*form catalog-mark*/
+#catalog-form{
+  float:right;
+  width:475px;
+  margin-top:10px;
+  clear:right;
+}
+/*end catalog-mark*/
+
+/*table wrap-mark*/
+#mark-form .form-item,
+#mark-form .form-actions{
+  margin:5px;
+  padding:0px;
+}
+#mark-form .form-item{
+  float:left;
+  margin: 5px 10px 5px 0px;
+}
+#mark-form{
+  float:right;
+  width:475px;
+  margin-top:10px;
+  clear:right;
+}
+/*end table wrap-mark*/
+
+/*#remark-form*/
+#remark-form .form-item-fsb,
+#remark-form .form-item-hw,
+#remark-form .form-item-tf,
+#remark-form .form-item-test{
+  min-width:35px;
+  margin-top:10px;
+}
+#remark-form{
+  float:left;
+  clear:both;
+  margin-top:10px;
+  width:938px;
+}
+/*#end remark-form*/
+
+/*#lessons-form*/
+#lessons-form #new-lesson{
+  background-image:url(../img/plus.png);
+  background-repeat:no-repeat;
+  background-position:center center;
+  background-size: 14px 14px;
+  padding: 7px;
+  margin-right:10px;
+  cursor:pointer;
+}
+#lessons-form #submit-lesson{
+  display:none;
+}
+#lessons-form .lessons-list{
+  padding:10px 5px;
+}
+#lessons-form .odd{
+  background-color:#f3f3f3;
+}
+#lessons-form .form-type-checkbox{
+  float:left;
+  margin:0px;
+  padding:0px;
+  margin-right:25px;
+  margin-top:-3px;
+}
+#lessons-form .form-item-field{
+  margin:7px;
+}
+#lessons-form .empty_message{
+  margin: 0.5em 0;
+  border-bottom:1px solid #fff;
+}
+#lessons-form{
+  width:420px;
+  float:left;
+  clear:left;
+  margin-top:10px;
+}
+.wrap-lessons{
+  width:100%;
+  max-height:561px;
+  overflow-y:scroll;
+}
+/*end #lessons-form*/
+
+/*#chart-form*/
+#chart-form{
+  width:475px;
+  float:right;
+}
+#chart-form .chart {
+  width:473px;
+  height:290px;
+  border:0px solid lightblue;
+}
+svg circle:hover{
+  cursor:pointer;
+}
+/*end #chart-form{*/
+
+/*#schoolbook-form*/
+#schoolbook-form{
+  width:420px;
+  float:left;
+  margin-right:20px;
+}
+#schoolbook-form .form-item,
+#schoolbook-form .form-actions{
+  margin:5px;
+  padding:0px;
+}
+#schoolbook-form .form-item{
+  float:left;
+  margin: 5px 10px 5px 0px;
+}
+#schoolbook-form #lesson-student,
+#schoolbook-form #lesson-registered{
+  color:#000 !important;
+}
+/*end #schoolbook-form*/
+

@@ -1,0 +1,9 @@
+name = Calendar
+type = Module
+description = Calendar.
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+stylesheets[all][] = 'templates/css/style.css'
+stylesheets[print][] = 'templates/css/print.css'

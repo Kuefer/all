@@ -1,0 +1,607 @@
+<?php
+use Sabre\VObject;
+function mathe_search_init() {
+  drupal_add_css(drupal_get_path('module', 'mathe_search') . '/templates/css/style.css', 'module', 'all', false);
+}
+//---------------------------------
+function mathe_search_hook_info () {
+    return array('mathe_search' => array('info' => t('Mathe-Nachhilfe search Module.')));
+}
+function mathe_search_permission () {
+    return array('view mathe_search page' => array('title' => t('Acces mathe-nachhilfe search page')));
+}
+function mathe_search_node_access($node, $op, $account) {
+    switch ($op) {
+        case 'view':
+            if (user_access('view mathe_search page', $account)) {
+                return NODE_ACCESS_ALLOW;
+            }
+        break;
+        default:
+            return NODE_ACCESS_IGNORE;
+        break;
+    }
+}
+//----------------------------------------------------------------------------
+function mathe_search_submit($form, &$form_state) {
+  return drupal_goto('/search/' . urlencode($form_state['input']['text']));
+}
+function mathe_search_form($form, &$form_state, $url = false) {
+  $form['field'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Search'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#id' => 'wrap-search',
+  );
+  $form['field']['text'] = array(
+    '#type' => 'textfield',
+    '#size' => 46,
+    '#value' => !isset($url['advanced']) ? $url : '',
+    '#title' => t('Enter your key words'),
+  );
+  $form['field']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Go'),
+    '#attributes' => array('class'=>array('submit-save')),
+    '#submit' => array('mathe_search_submit'),
+  );
+  return $form;
+}
+//----------------------------------------------------------------------------
+function mathe_advanced_submit($form, &$form_state) {
+  if(!empty($form_state['input']['any'])) $url['any'] = $form_state['input']['any'];
+  if(!empty($form_state['input']['none'])) $url['none'] = $form_state['input']['none'];
+  if(!empty($form_state['input']['type']['1'])) $url['event'] = 1;
+  if(!empty($form_state['input']['type']['2'])) $url['employee'] = 1;
+  if(!empty($form_state['input']['type']['3'])) $url['student'] = 1;
+  $url['advanced'] = 1;
+
+  return drupal_goto('/search/' . http_build_query($url));
+}
+function mathe_advanced_form($form, &$form_state, $url = false) {
+  $default = array();
+  $options = array();
+  $options['1'] = t('Event');
+  $options['2'] = t('Employee');
+  $options['3'] =  t('Student');
+
+  if(isset($url)){
+    if(isset($url['any'])) $default['any'] = $url['any'];
+    if(isset($url['none'])) $default['none'] = $url['none'];
+    if(isset($url['event'])) array_push($default, 1);
+    if(isset($url['employee'])) array_push($default, 2);
+    if(isset($url['student'])) array_push($default, 3);
+  }
+
+  $form['advanced'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Advanced search'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#id' => 'advanced-search',
+  );
+//----------------------------------------------------
+  $form['advanced']['any'] = array(
+    '#type' => 'textfield',
+    '#size' => 40,
+    '#value' => isset($url['any']) ? $url['any'] : '',
+    '#title' => t('Containing any of the words'),
+    '#prefix' => '<div id="advanced-fields">'
+  );
+  $form['advanced']['none'] = array(
+    '#type' => 'textfield',
+    '#size' => 40,
+    '#value' => isset($url['none']) ? $url['none'] : '',
+    '#title' => t('Containing none of the words'),
+    '#suffix' => '</div>'
+  );
+//----------------------------------------------------
+  $form['advanced']['type'] = array(
+    '#type' => 'checkboxes',
+    '#options' => $options,
+    '#title' => t('Only of the type(s)'),
+    '#id' => 'go-advanced-type',
+    '#default_value' => $default
+  );
+//----------------------------------------------------
+  $form['advanced']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Advanced search'),
+    '#attributes' => array('class'=>array('submit-save')),
+    '#submit' => array('mathe_advanced_submit'),
+    '#prefix' => '</br></br></br><div style="">',
+    '#suffix' => '</div>'
+  );
+
+  return $form;
+}
+//----------------------------------------------------------------------------
+function mathe_search_results_form($form, &$form_state, $string = false) {
+  global $user;
+  if(empty($string)) return false;
+  $result = array();
+  $land = $string;
+  $land = str_replace(' ', '%', $land);
+  #who is the franchisetaker?
+  $query = db_query("SELECT nr.franchisetaker as uid
+    FROM nachhilfe_roles AS nr
+    WHERE nr.uid = :user;", array(':user' => $user->uid));
+  $franchisetaker = $query->fetch();
+
+  $build['wrap'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Search result'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#id' => 'wrap-result',
+  );
+
+  #events
+  module_load_include('inc', 'dav', 'includes/class_extensions');
+  $pdo = Database::getConnection();
+  $pdo->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+
+  $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
+
+  $principals = array();
+  $events = array();
+
+  $employees = db_select('users','u');
+  $employees->leftJoin('nachhilfe_employees', 'e', 'e.uid = u.uid');
+  $employees->leftJoin('nachhilfe_roles', 'r', 'r.uid = u.uid');
+  $employees->leftJoin('users_roles', 'ur', 'ur.uid = u.uid');
+  $employees->addField('u','mail','mail');
+  @$employees->condition('r.franchisetaker', $franchisetaker->uid);
+  $employees->condition('ur.rid', array(4,6), 'IN');
+  $employees->condition('u.status', 1, '=');
+  $employees = $employees->execute()->fetchAll();
+
+  #get calendars for user
+  foreach($employees as $employee){
+    $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
+    array_push($principals, $calendars);
+  }
+/*
+     <C:filter>
+       <C:comp-filter name="VCALENDAR">
+         <C:comp-filter name="VEVENT">
+           <C:prop-filter name="ATTENDEE">
+             <C:text-match collation="i;ascii-casemap">mailto:lisa@example.com</C:text-match>
+             <C:param-filter name="PARTSTAT">
+               <C:text-match collation="i;ascii-casemap">NEEDS-ACTION</C:text-match>
+             </C:param-filter>
+           </C:prop-filter>
+         </C:comp-filter>
+       </C:comp-filter>
+     </C:filter>
+
+        $filter1 = array(
+            'name' => 'VEVENT',
+            'comp-filters' => array(
+              array(
+                  'name' => 'VALARM',
+                  'is-not-defined' => false,
+                  'comp-filters' => array(),
+                  'prop-filters' => array(
+                    array(
+                        'name' => 'action',
+                        'is-not-defined' => false,
+                        'time-range' => null,
+                        'param-filters' => array(),
+                        'text-match' => array(
+                            'collation' => 'i;ascii-casemap',
+                            'value' => 'display',
+                            'negate-condition' => false,
+                        ),
+                    ),
+                  ),
+                  'time-range' => null,
+              ),
+            ),
+            'prop-filters' => array(),
+            'is-not-defined' => false,
+            'time-range' => null,
+        );
+BEGIN:VEVENT
+UID:sabre-vobject-e3e45985-abd7-4991-9a7f-59062a63e243
+DTSTAMP:20170919T175043Z
+SUMMARY:New event
+DESCRIPTION:None
+DTSTART;TZID=Europe/Berlin:20170919T020000
+DTEND;TZID=Europe/Berlin:20170919T030000
+ATTENDEE;EMAIL=office@admin-nachhilfe.com;CN=Robert Dan:office@admin-nachhi
+ lfe.com
+END:VEVENT
+*/
+
+
+  $filter = array(
+    'name' => 'VCALENDAR',
+    'is-not-defined' => false,
+    'time-range' => null,
+    'prop-filters' => array(),
+    'comp-filters' => array(
+      array(
+        'name' => 'VEVENT',
+        'is-not-defined' => false,
+        'prop-filters' => array(),
+        'comp-filters' => array(),
+        'time-range' => null,
+      ),
+    ),
+  );
+
+  $filter_description = $filter;
+  $filter_description['comp-filters'][0]['prop-filters'][0] = array(
+      'name' => 'DESCRIPTION',
+      'is-not-defined' => false,
+      'time-range' => null,
+      'text-match' => array(
+        'collation' => 'i;ascii-casemap',
+        'value' => true,
+        'negate-condition' => false,
+      ),
+      'param-filters' => array(),
+      'prop-filters' => array(),
+    );
+  $filter_description['comp-filters'][0]['prop-filters'][0]['text-match']['value'] = $land;
+
+  $filter_summary = $filter;
+  $filter_summary['comp-filters'][0]['prop-filters'][0] = array(
+    'name' => 'SUMMARY',
+    'is-not-defined' => false,
+    'time-range' => null,
+    'text-match' => array(
+      'collation' => 'i;ascii-casemap',
+      'value' => true,
+      'negate-condition' => false,
+    ),
+    'param-filters' => array(),
+    'prop-filters' => array(),
+  );
+  $filter_summary['comp-filters'][0]['prop-filters'][0]['text-match']['value'] = $land;
+
+  $filter_mail = $filter;
+  $filter_mail['comp-filters'][0]['prop-filters'][0] = array(
+    'name' => 'ATTENDEE',
+    'is-not-defined' => false,
+    'time-range' => null,
+    'text-match' => array(
+      'collation' => 'i;ascii-casemap',
+      'value' => true,
+      'negate-condition' => false
+    ),
+    'param-filters' => array(),
+    'prop-filters' => array(),
+  );
+  $filter_mail['comp-filters'][0]['prop-filters'][0]['text-match']['value'] = $land;
+
+
+  $filter_name = $filter_mail;
+  $filter_name['comp-filters'][0]['prop-filters'][0]['text-match'] = null;
+  $filter_name['comp-filters'][0]['prop-filters'][0]['param-filters'] = array(
+    array(
+      'name' => 'CN',
+      'is-not-defined' => false,
+      'time-range' => null,
+      'text-match' => array(
+        'collation' => 'i;ascii-casemap',
+        'value' => true,
+        'negate-condition' => false,
+      ),
+      'param-filters' => array(),
+      'prop-filters' => array(),
+    ),
+  );
+  $filter_name['comp-filters'][0]['prop-filters'][0]['param-filters'][0]['text-match']['value'] = $land;
+
+  function _query_events($filter, $principals, $CalDAV){
+    $results = array();
+    #get every single calendar.
+    foreach($principals as $calendars){
+      #get events for every calendar.
+      foreach($calendars as  $calendar){
+        $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filter);
+        #read event data.
+        foreach($icss as $i => $ics){
+          $rrule = array();
+          $event = $CalDAV->getCalendarObject(array($calendar['id'][0],0), $ics);
+          $data = VObject\Reader::read($event['calendardata']);
+          array_push($results, $data);
+        }
+      }
+    }
+    return $results;
+  }
+
+  $filters = array(
+    'name' => $filter_name,
+    'mail' => $filter_mail,
+    'summary' => $filter_summary,
+    'description' => $filter_description
+  );
+
+  foreach($filters as $filter){
+    $query_result = _query_events($filter, $principals, $CalDAV);
+    if(empty($query_result)) continue;
+    foreach($query_result as $data){
+      array_push($events,(object) array(
+        'title' => (string) $data->VEVENT->SUMMARY,
+        'description' => (string) $data->VEVENT->DESCRIPTION,
+        'starts' => strtotime((string) $data->VEVENT->DTSTART),
+        'student_firstname' => (string) $data->VEVENT->ATTENDEE['CN'],
+        'student_lastname' => (string) $data->VEVENT->ATTENDEE['EMAIL'],
+        'teacher_firstname' => '',
+        'teacher_lastname' => ''
+      ));
+    }
+  }
+krsort($events);
+#$events = array();
+
+  if(!empty($events)){
+    foreach($events as $i => $event){
+
+      $build['wrap']['event'][$i] = array(
+        '#type' => 'markup',
+        '#markup' => '<div class="search-result">'
+        . '<a href="/calendar/' . date('Y/m/d', $event->starts) . '">'
+        . '<span class="search-type">Event</span>&nbsp;&nbsp;'
+        . '<span class="search-title">Starts: ' . date('d-F-Y', $event->starts) . ',&nbsp;</span> '
+        /*
+        . '<span class="search-title">Teacher: ' . $event->teacher_firstname  . '&nbsp;' . $event->teacher_lastname . ',&nbsp;</span>'
+        */
+        . '<span class="search-title">Title: '
+          . (!empty($event->title)? (strlen($event->title) > 50 ? substr($event->title,0,50)."..." : $event->title ):'none')
+        . ',&nbsp;&nbsp;</span>'
+        . '<span class="search-title">Student: '
+          . (!empty($event->student_firstname)? $event->student_firstname
+          . '&nbsp;' . $event->student_lastname:'none'). '</span>'
+        .'</a></div>'
+      );
+    }
+  }
+
+  #employees
+  $query = db_query("SELECT
+        ne.firstname, ne.lastname, ne.street, ne.city,
+    MATCH
+        (ne.firstname, ne.lastname, ne.street, ne.city)
+    AGAINST
+        (:like IN BOOLEAN MODE) AS score
+    FROM
+        nachhilfe_employees as ne
+        LEFT JOIN nachhilfe_roles as nr ON nr.uid = ne.uid
+    WHERE
+        MATCH
+            (ne.firstname, ne.lastname, ne.street, ne.city)
+        AGAINST
+            (:like IN BOOLEAN MODE)
+        AND
+            nr.franchisetaker = :franchisetaker
+    ORDER BY
+        score DESC;",
+  array(':like' => $land, ':franchisetaker' => $franchisetaker->uid));
+  $employees = $query->fetchAll();
+  #if (!empty($employees)) $result = array_merge($result, $employees);
+
+
+  #students
+  $query = db_query("SELECT
+        ns.uid, ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city,
+    MATCH
+        (ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city)
+    AGAINST
+        (:like IN BOOLEAN MODE) AS score
+    FROM
+        nachhilfe_students as ns
+        LEFT JOIN nachhilfe_roles as nr ON nr.uid = ns.uid
+    WHERE
+        MATCH
+            (ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city)
+        AGAINST
+            (:like IN BOOLEAN MODE)
+        AND
+            nr.franchisetaker = :franchisetaker
+    ORDER BY
+        score DESC;",
+  array(':like' => $land, ':franchisetaker' => $franchisetaker->uid));
+  $students = $query->fetchAll();
+
+  if(!empty($students)){
+    foreach($students as $i => $student){
+      $build['wrap']['students'][$i] = array(
+        '#type' => 'markup',
+        '#markup' => '<div class="search-result">'
+        . '<a href="/profile/' . $student->uid . '">'
+          . '<span class="search-type">Students</span>&nbsp;&nbsp;'
+          . '<span class="search-title">Name: ' . $student->firstname . ' ' . $student->lastname . ',&nbsp;</span>'
+          . '<span class="search-title">Address:  ' . $student->street . ',&nbsp;</span>'
+          . '<span class="search-title">City: ' . $student->city . '</span>'
+        . '</a></div>'
+      );
+    }
+  }
+
+  return $build;
+
+}
+function mathe_advanced_results_form($form, &$form_state, $string = false) {
+  global $user;
+  if(empty($string)) return false;
+  $land = isset($string['any']) ? $string['any']:'';
+  $none = isset($string['none']) ? $string['none']:'';
+
+  #who is the franchisetaker?
+  $query = db_query("SELECT nr.franchisetaker as uid
+    FROM nachhilfe_roles AS nr
+    WHERE nr.uid = :user;", array(':user' => $user->uid));
+  $franchisetaker = $query->fetch();
+
+  $build['wrap'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Advanced search result'),
+    '#collapsible' => true,
+    '#collapsed' => false,
+    '#id' => 'wrap-result',
+  );
+
+  if(isset($string['event'])){
+    #events
+    $query = db_query("SELECT
+          ne.id, ne.title, ne.starts,
+          ns.student_firstname, ns.student_lastname,
+          nm.firstname as teacher_firstname, nm.lastname as teacher_lastname,
+      IF(MATCH
+          (ne.title,
+          ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city,
+          nm.firstname, nm.lastname, nm.street, nm.city)
+      AGAINST
+          (:like IN BOOLEAN MODE), 1, NULL) AS score
+      FROM
+          nachhilfe_events as ne
+      LEFT JOIN nachhilfe_students as ns ON ns.uid = ne.student
+      LEFT JOIN nachhilfe_groups as ng ON ng.id = ne.groups
+      LEFT JOIN nachhilfe_employees as nm ON nm.uid = ng.uid
+      LEFT JOIN nachhilfe_roles as nr ON nr.uid = ng.uid
+      WHERE
+          MATCH
+              (ne.title,
+              ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city,
+              nm.firstname, nm.lastname, nm.street, nm.city)
+          AGAINST
+              (:like IN BOOLEAN MODE)
+          AND
+              nr.franchisetaker = :franchisetaker
+      ORDER BY ne.id DESC;",
+      array(':like' => '+' . $land . ' -' . $none, ':franchisetaker' => $franchisetaker->uid));
+    $events = $query->fetchAll();
+  }
+
+  if(!empty($events)){
+    foreach($events as $i => $event){
+      $build['wrap']['event'][$i] = array(
+        '#type' => 'markup',
+        '#markup' => '<a href="/calendar/' . date('Y/m/d', $event->starts) . '">' .
+        '<span class="search-type">Event</span>&nbsp;&nbsp;'
+        . '<span class="search-title">Starts:</span> ' . date('d-F-Y', $event->starts) . ',&nbsp;'
+        . '<span class="search-title">Teacher:</span> ' . $event->teacher_firstname  . '&nbsp;' . $event->teacher_lastname . ',&nbsp;'
+        . '<span class="search-title">Student</span> ' . (!empty($event->student_firstname)? $event->student_firstname . '&nbsp;' . $event->student_lastname:'none'). ',&nbsp;'
+        . '<span class="search-title">Title:</span> ' . (!empty($event->title)? (strlen($event->title) > 50 ? substr($event->title,0,50)."..." : $event->title ):'none')
+        . '</a><br><br>'
+      );
+    }
+  }
+
+  if(isset($string['employee'])){
+    #employees
+    $query = db_query("SELECT
+          ne.uid, ne.firstname, ne.lastname, ne.street, ne.city,
+      MATCH
+          (ne.firstname, ne.lastname, ne.street, ne.city)
+      AGAINST
+          (:like IN BOOLEAN MODE) AS score
+      FROM
+          nachhilfe_employees as ne
+          LEFT JOIN nachhilfe_roles as nr ON nr.uid = ne.uid
+      WHERE
+          MATCH
+              (ne.firstname, ne.lastname, ne.street, ne.city)
+          AGAINST
+              (:like IN BOOLEAN MODE)
+          AND
+              nr.franchisetaker = :franchisetaker
+      ORDER BY
+          score DESC;",
+    array(':like' => '+' . $land . ' -' . $none, ':franchisetaker' => $franchisetaker->uid));
+    $employees = $query->fetchAll();
+  }
+
+  if(!empty($employees)){
+    foreach($employees as $i => $employee){
+      $build['wrap']['employee'][$i] = array(
+        '#type' => 'markup',
+        '#markup' => '<a href="/profile/' . $employee->uid . '">' .
+        '<span class="search-type">Employees</span>&nbsp;&nbsp;'
+        . '<span class="search-title">Name:</span> ' . $employee->firstname . ' ' . $employee->lastname . ',&nbsp;'
+        . '<span class="search-title">Address:</span> ' . $employee->street . ',&nbsp;'
+        . '<span class="search-title">City:</span> ' . $employee->city
+        . '</a><br><br>'
+      );
+    }
+  }
+
+  if(isset($string['student'])){
+    #students
+    $query = db_query("SELECT
+          ns.uid, ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city,
+      MATCH
+          (ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city)
+      AGAINST
+          (:like IN BOOLEAN MODE) AS score
+      FROM
+          nachhilfe_students as ns
+          LEFT JOIN nachhilfe_roles as nr ON nr.uid = ns.uid
+      WHERE
+          MATCH
+              (ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city)
+          AGAINST
+              (:like IN BOOLEAN MODE)
+          AND
+              nr.franchisetaker = :franchisetaker
+      ORDER BY
+          score DESC;",
+    array(':like' => '+' . $land . ' -' . $none, ':franchisetaker' => $franchisetaker->uid));
+    $students = $query->fetchAll();
+  }
+
+  if(!empty($students)){
+    foreach($students as $i => $student){
+      $build['wrap']['students'][$i] = array(
+        '#type' => 'markup',
+        '#markup' => '<a href="/profile/' . $student->uid . '">' .
+        '<span class="search-type">Students</span>&nbsp;&nbsp;'
+        . '<span class="search-title">Name:</span> ' . $student->firstname . ' ' . $student->lastname . ',&nbsp;'
+        . '<span class="search-title">Address:</span> ' . $student->street . ',&nbsp;'
+        . '<span class="search-title">City:</span> ' . $student->city
+        . '</a><br><br>'
+      );
+    }
+  }
+
+  return $build;
+
+}
+//----------------------------------------------------------------------------
+function mathe_search_menu_callback($string = '') {
+  if(strpos($string, '=')) parse_str($string, $url);
+  else $url = urldecode($string);
+
+  $variables['search'] = drupal_get_form('mathe_search_form', $url);
+  #$variables['advanced'] = drupal_get_form('mathe_advanced_form', $url);
+  if(empty($url['advanced']) && !empty($string)) $variables['result'] = drupal_get_form('mathe_search_results_form', $url);
+  #if(!empty($url['advanced']) && !empty($string)) $variables['result'] = drupal_get_form('mathe_advanced_results_form', $url);
+  return theme('search', $variables);
+}
+//----------------------------------------------------------------------------
+function mathe_search_theme ($existing, $type, $theme, $path) {
+  return array(
+    'search' =>  array(
+      'template' => 'page',
+      'path' => drupal_get_path('module', 'mathe_search') . '/templates/',
+    )
+  );
+}
+function mathe_search_menu() {
+  $items['search'] = array(
+    'title' => 'Search',
+    'page callback' => 'mathe_search_menu_callback',
+    'page arguments' => array(1),
+    'access callback' => 'user_access',
+    'access arguments' => array('view profile page'),
+    'type' => MENU_NORMAL_ITEM
+  );
+
+  return $items;
+}

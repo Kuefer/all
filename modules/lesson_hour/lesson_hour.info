@@ -1,0 +1,12 @@
+name = Lesson hour
+type = Module
+description = Lesson hour.
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+files[] = lesson_hour.module
+files[] = /templates/page.tpl.php
+files[] = /templates/css/style.css
+
+

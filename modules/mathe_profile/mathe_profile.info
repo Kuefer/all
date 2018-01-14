@@ -1,0 +1,11 @@
+name = User Profile
+type = Module
+description = Employees and students profile.
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+files[] = mathe_profile.module
+files[] = /templates/page.tpl.php
+files[] = /templates/css/style.css
+

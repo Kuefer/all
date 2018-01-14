@@ -1,0 +1,318 @@
+/* ------------------------------------------------------------------------- */
+main .container{
+  background-color:#f4f4f4 !important;
+}
+.wrap-schoolbook #edit-firstname{
+  border:1px solid red !important;
+}
+/* ------------------------------------------------------------------------- */
+/* table */
+.wrap-schoolbook table th,
+.wrap-result table th,
+.wrap-lessons table th,
+.wrap-notite table th,
+.wrap-grade table th,
+.wrap-hour-target table th {
+  background-color:#000;
+  text-align:left;
+  vertical-align:bottom !important;
+  word-break:keep-all !important;
+  font-weight:100;
+  border:1px solid red !important;
+}
+.wrap-grade table th {
+  text-align:right;
+  width:50px;
+}
+.wrap-schoolbook table td,
+.wrap-hour-target table td,
+.wrap-result table td,
+.wrap-grade table td {
+  width:auto;
+  text-align:left;
+  vertical-align:top !important;
+  padding:0px ;
+  word-break:keep-all !important;
+  margin:0px !important;
+}
+/* end table */
+/* ------------------------------------------------------------------------- */
+/* input */
+.wrap-schoolbook .form-item,
+.wrap-result .form-item,
+.wrap-grade .form-item,
+.wrap-hour-target .form-item {
+  margin:0 !important;
+  width:100%;
+}
+/*
+.wrap-schoolbook .form-item .form-text,
+.wrap-schoolbook .form-item .form-select,
+.wrap-result .form-text,
+.wrap-notite .form-textarea,
+.wrap-grade .form-item .form-text,
+.wrap-grade .form-item .form-select,
+.wrap-hour-target .form-item .form-text {
+  text-overflow:ellipsis;
+  width:100%;
+  padding:9px 3px 1px 3px !important;
+  border:0px solid silver !important;
+  margin:0px !important;
+  -webkit-border-radius:0 !important;
+  -moz-border-radius:0 !important;
+  border-radius:0 !important;
+}
+*/
+.wrap-hour-target .form-item .form-checkbox{
+  margin-top:4px !important;
+  margin-left:7px !important;
+}
+.wrap-schoolbook select,
+.wrap-grade select {
+  background-color:#fff;/*#ededed;*/
+  background-image:none;
+
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  -ms-appearance:none;
+  -o-appearance-radius:3px;
+  appearance:none;
+}
+.wrap-notite .form-item {
+  margin:0px !important;
+}
+textarea {
+  resize:none;
+}
+/* end input */
+/* ------------------------------------------------------------------------- */
+/* wrap-schoolbook */
+#second-stunde,
+#second-minuten,
+#notenzieldecimal,
+#zeugnisnotedecimal,
+#zeugnisnote,
+#notenziel,
+#second-midday {
+  float:left;
+  padding:9px 2px 1px 2px !important;
+}
+#second-minuten {
+  width:23px !important;
+}
+#zeugnisnotedecimal,
+#notenzieldecimal {
+  width:70% !important;
+}
+#zeugnisnote,
+#notenziel {
+  width:20px !important;
+}
+#second-midday{
+  width:35% !important;
+}
+#second-stunde {
+  width:23px !important;
+}
+#stunde-geburtsdatum-date-year {
+  width:38px;
+  float:left;
+}
+#stunde-geburtsdatum-date-month {
+  width:28px;
+  float:left;
+}
+#stunde-geburtsdatum-date-day {
+  width:18px;
+  float:left;
+}
+/* end wrap-schoolbook */
+/* ------------------------------------------------------------------------- */
+/* block student list buttons */
+.block-stunde .form-submit{
+  width:100%;
+  margin-bottom:5px;
+}
+/* end block student list buttons */
+/* ------------------------------------------------------------------------- */
+/* fieldsets */
+.page-lesson-hour fieldset {
+  border-radius:0px;
+  border-top:1px solid whitesmoke !important;
+  padding:10px 0px 20px 0px !important;
+  margin:0px;
+}
+.page-lesson-hour fieldset legend a {
+  text-decoration:none;
+  color:#2f4f4f;
+}
+/* end fieldsets */
+/* ------------------------------------------------------------------------- */
+/* student ziel */
+.wrap-hour-target th.table-checkbox { /**/
+  width:32px !important;
+  cursor:pointer;
+}
+.wrap-hour-target th.table-col {
+  width:300px !important;
+}
+.wrap-hour-target th.table-datum {
+  width:60px !important;
+}
+.wrap-hour-target tr.studentziel-list {
+  /*min-height:34px !important;
+  height:34px;*/
+}
+.wrap-hour-target tr.studentziel-submit{
+  padding:5px !important;
+}
+.wrap-hour-target tr.studentziel-list td {
+  vertical-align:bottom;
+  padding-top:14px !important;
+  padding-left:2px !important;
+  word-break:keep-all !important;
+}
+/* end stunden ziel */
+/* ------------------------------------------------------------------------- */
+/* wrap-lessons */
+.wrap-lessons .form-type-checkbox {
+  float:left;
+  width:24px;
+  height:20px;
+}
+.wrap-lessons .fix-width {
+  width:28px;
+}
+.wrap-lessons tr.classes-list {
+  min-height:26px !important;
+  height:30px;
+}
+.wrap-lessons tr.classes-list td {
+  padding:4px !important;
+  word-break:keep-all !important;
+}
+/* end wrap-lessons */
+/* ------------------------------------------------------------------------- */
+/* wrap-grade */
+.grade-table {
+  float:left;
+}
+.wrap-grade td {
+  padding:4px !important;
+}
+.wrap-grade .note-back,
+.wrap-grade .note-forth {
+  padding:0px !important;
+  margin:0px !important;
+  width:12px;
+  min-width:12px;
+  max-width:12px;
+  height:90px !important;
+  min-height:100% !important;
+  background:red;
+  background-image:-webkit-linear-gradient(top, #ededed, #d9d9d9);
+  background-image:-moz-linear-gradient(top, #ededed, #d9d9d9);
+  background-image:-ms-linear-gradient(top, #ededed, #d9d9d9);
+  background-image:-o-linear-gradient(top, #ededed, #d9d9d9);
+  background-image:linear-gradient(to bottom, #ededed, #d9d9d9);
+}
+.wrap-grade .note-back .form-submit,
+.wrap-grade .note-forth .form-submit{
+  margin:0px !important;
+  padding:0px !important;
+  border:0px solid silver;
+  width:100%;
+  height:100% !important;
+
+  min-height:100% !important;
+  -webkit-border-radius:0 !important;
+  -moz-border-radius:0 !important;
+  border-radius:0 !important;
+}
+.wrap-grade .form-item #edit-note{
+  float:left;
+}
+.wrap-grade .item-schule {
+  padding:0px !important;
+  width:60px !important;
+  min-width:60px;
+  max-width:60px;
+  background-color:white;
+}
+.wrap-grade .item-note,
+.wrap-grade .item-decimals {
+  padding:0px !important;
+  width:30px;
+  min-width:30px;
+  max-width:30px;
+}
+.wrap-grade .list-element{
+  width:14% ;
+}
+/* end wrap-grade */
+/* ------------------------------------------------------------------------- */
+/* note-chart */
+.grade-chart{
+  float:left;
+  height:137px;
+}
+/* end note-chart */
+/* ------------------------------------------------------------------------- */
+/* general table */
+.page-lesson-hour table,
+.page-lesson-hour th,
+.page-lesson-hour tr,
+.page-lesson-hour td {
+  border:1px solid lightgrey;
+}
+/*.page-lesson-hour table {
+  border-collapse:collapse;
+}*/
+/* end table */
+/* ------------------------------------------------------------------------- */
+/* stuff */
+.page-lesson-hour .checked {
+  background-position:bottom;
+  background-size:20px 20px;
+  background-repeat:no-repeat;
+  background-color:white;
+  background-image:url(data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTYuMC4wLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgd2lkdGg9IjE2cHgiIGhlaWdodD0iMTZweCIgdmlld0JveD0iMCAwIDQxNS41ODIgNDE1LjU4MiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgNDE1LjU4MiA0MTUuNTgyOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+CjxnPgoJPHBhdGggZD0iTTQxMS40Nyw5Ni40MjZsLTQ2LjMxOS00Ni4zMmMtNS40ODItNS40ODItMTQuMzcxLTUuNDgyLTE5Ljg1MywwTDE1Mi4zNDgsMjQzLjA1OGwtODIuMDY2LTgyLjA2NCAgIGMtNS40OC01LjQ4Mi0xNC4zNy01LjQ4Mi0xOS44NTEsMGwtNDYuMzE5LDQ2LjMyYy01LjQ4Miw1LjQ4MS01LjQ4MiwxNC4zNywwLDE5Ljg1MmwxMzguMzExLDEzOC4zMSAgIGMyLjc0MSwyLjc0Miw2LjMzNCw0LjExMiw5LjkyNiw0LjExMmMzLjU5MywwLDcuMTg2LTEuMzcsOS45MjYtNC4xMTJMNDExLjQ3LDExNi4yNzdjMi42MzMtMi42MzIsNC4xMTEtNi4yMDMsNC4xMTEtOS45MjUgICBDNDE1LjU4MiwxMDIuNjI4LDQxNC4xMDMsOTkuMDU5LDQxMS40Nyw5Ni40MjZ6IiBmaWxsPSIjODJiYTU5Ii8+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPGc+CjwvZz4KPC9zdmc+Cg==);
+}
+.page-lesson-hour .no-border{
+  border:0px solid silver !important;
+}
+.page-lesson-hour .valign-middle{
+  vertical-align:middle;
+}
+.page-lesson-hour .valign-top{
+  vertical-align:top;
+}
+.page-lesson-hour .description {
+  font-size:11px !important;
+}
+.page-lesson-hour .right {
+  text-align:right;
+}
+.page-lesson-hour .ui-tooltip-content {
+  font-size:10pt;
+}
+.page-lesson-hour .float-right{
+  float:right;
+}
+.page-lesson-hour .float-left{
+  float:left;
+}
+.page-lesson-hour .comma {
+  margin-top:13px;
+}
+.page-lesson-hour td.fix-padding {
+  padding:0px !important;
+}
+.float-left{
+  float:left;
+}
+.slash {
+  margin-top:10px;
+}
+/* end stuff */
+/* ------------------------------------------------------------------------- */

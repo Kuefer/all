@@ -1,0 +1,105 @@
+/* General */
+#wrap-create-employee label[for='edit-employees-password-repeat-password-field'] {
+  display:none;
+}
+#wrap-create-employee .password-suggestions {
+  display:none !important;
+}
+#wrap-create-employee {
+    max-width:940px;
+}
+#wrap-create-employee,
+#wrap-create-employee tr,
+#wrap-create-employee th,
+#wrap-create-employee td {
+    border:0px solid silver;
+    margin:0px !important;
+    padding:0px !important;
+}
+#wrap-create-employee td {
+    padding-bottom: 10px !important;
+}
+#wrap-create-employee th {}
+#wrap-create-employee .form-select {
+    margin: 0px !important;
+    float:left;
+}
+#wrap-create-employee .form-item {
+    margin: 0px;
+}
+#wrap-create-employee .form-item label {
+  margin-top:0;
+}
+#wrap-create-employee .form-text {
+    vertical-align: bottom;
+    color: black;
+    margin: 0px;
+    float: left;
+}
+#wrap-create-employee #button_add_phone,
+#wrap-create-employee #button_add_email {
+    margin-top: 0px;
+}
+#wrap-create-employee .page-content {
+    padding: 20px !important;
+}
+#wrap-create-employee .form-required {
+    color:firebrick;
+}
+#wrap-create-employee .float-left {
+    float: left;
+}
+#wrap-create-employee .slash {
+    margin-top: 10px;
+}
+#wrap-create-employee .row-multiple-fields div{
+  float:left;
+}
+#wrap-create-employee .row-multiple-fields .submit-remove{
+  float:left;
+}
+#wrap-create-employee .row-multiple-fields select{
+  width:125px;
+}
+#wrap-create-employee .row-multiple-fields .form-type-select{
+  margin-right:10px;
+}
+/*
+#wrap-create-employee input[name^="employees[phone]"] {
+    width: 275px !important;
+}
+#wrap-create-employee input[name^="employees[email]"] {
+    width: 295px !important;
+}
+*/
+#wrap-create-employee input.form-text {
+  width:auto !important;
+}
+/* end General*/
+#wrap-create-employee .form-type-password-confirm,
+#wrap-create-employee .form-type-password{
+  clear:both;
+  float:left;
+}
+/* end General*/
+
+.form-item-employees-name-firstname,
+.form-item-employees-name-lastname,
+.form-item-employees-address-street,
+.form-item-employees-address-city,
+.form-item-employees-address-zip,
+.form-item-employees-about-birthday,
+.form-item-employees-about-gender,
+.form-item-employees-about-role
+{
+  float:left;
+}
+
+.form-item-employees-name-lastname,
+.form-item-employees-address-city,
+.form-item-employees-address-zip,
+.form-item-employees-about-gender,
+.form-item-employees-about-role
+{
+  margin-left:20px !important;
+}

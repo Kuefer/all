@@ -1,0 +1,45 @@
+.page-settings .form-text {
+    max-width: 300px;
+    width: auto;
+}
+.page-settings .delete {
+    margin: 8px 8px 0 0 ;
+    padding: 4px 5px !important;
+}
+.page-settings .form-item,
+.page-settings .form-actions {
+    margin: 5px 0;
+}
+
+.page-settings .settings-calendar,
+.page-settings .list-caldav,
+.page-settings .new-caldav {
+    margin: 10px 0;
+}
+
+.page-settings .settings-calendar,
+.page-settings .list-caldav,
+.page-settings .new-caldav{
+  border: 1px solid lightgray;
+  padding:10px;
+}
+
+.page-settings .list-caldav{
+  float:none;
+  clear: both;
+}
+.page-settings .new-caldav{
+  width:450px;
+  float:right;
+}
+.page-settings .new-caldav table{
+  margin-top:-6px !important;
+  margin-bottom:-4px !important;
+}
+.page-settings .new-caldav #caldav-port{
+  padding-left:10px;
+}
+.page-settings .settings-calendar{
+  width:440px;
+  float:left;
+}

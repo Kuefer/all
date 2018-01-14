@@ -1,0 +1,10 @@
+name = Dav
+type = Module
+description = CalDAV server.
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+files[] = dav.module
+
+

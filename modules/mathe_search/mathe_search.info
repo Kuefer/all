@@ -1,0 +1,9 @@
+name = Nachhilfe Search
+type = Module
+description = Nachhilfe Search.
+package = Mathe-Nachhilfe
+core = 7.x
+version = Dev
+
+files[] = mathe_search.module
+

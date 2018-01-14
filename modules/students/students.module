@@ -1,0 +1,1034 @@
+<?php
+function students_init() {
+  module_load_include('php', 'general', 'class/general');
+  ##require(drupal_get_path('module', 'general') . '/class/general.php');
+  drupal_add_css(drupal_get_path('module', 'students') . '/templates/css/style.css', 'module', 'all', false);
+  drupal_add_js(drupal_get_path('module', 'students') . '/templates/js/script.js');
+  drupal_add_js(drupal_get_path('theme', 'mathe') . '/js/jquery.maskedinput-1.3.js');
+}
+//---------------------------------------------------------------------------
+function students_create_form_validate ($form, &$form_state) {
+
+}
+function students_create_form_submit ($form, &$form_state) {
+  include('includes/password.inc');
+  global $user;
+  $phones = array();
+  $emails = array();
+
+  $values = new StdClass();
+  $values->pass = user_password(6);
+  $values->uid  = $form_state['values']['students']['student']['field']['value'];
+  $values->firstname  = ucfirst(trim($form_state['values']['students']['name']['firstname']));
+  $values->lastname = ucfirst(trim($form_state['values']['students']['name']['lastname']));
+  $values->student_firstname  = ucfirst(trim($form_state['values']['students']['student-name']['firstname']));
+  $values->student_lastname = ucfirst(trim($form_state['values']['students']['student-name']['lastname']));
+  $values->street = $form_state['values']['students']['address']['street'];
+  $values->city = ucfirst(trim($form_state['values']['students']['address']['city']));
+  $values->zip = $form_state['values']['students']['address']['zip'];
+  $values->schultyp = $form_state['values']['students']['others']['schultyp'];
+  $values->class = $form_state['values']['students']['others']['class'];
+  $values->birthday = $form_state['values']['students']['others']['birthday'];
+  $values->gender = $form_state['values']['students']['others']['gender'];
+
+ //------------------------------
+  #validation
+  foreach ($form_state['input']['students']['email'] as $i => $mail) {
+    $mail['field']['text'] = strtolower(preg_replace('/\s+/', '', $mail['field']['text']));
+    if (!empty($mail['field']['text']) && valid_email_address($mail['field']['text'])) array_push($emails, (object)$mail['field']);
+  }
+  #if (empty($emails)) return form_set_error('email', t('Please enter a valid E-mail addres.'));
+
+  foreach ($form_state['values']['students']['phone'] as $i => $phone) {
+    if (!empty($phone['field']['text'])) array_push($phones, (object)$phone['field']);
+  }
+  if (empty($phones)) return form_set_error('email', t('Please enter a valid phone addres.'));
+
+
+  #little form validation
+  if (empty($values->student_firstname)) return form_set_error('students', t('Student first name is required.'));
+  if (empty($values->student_lastname)) return form_set_error('students', t('Student last name is required.'));
+  #if (empty($values->birthday)) return form_set_error('students', t('Student birthday is required.'));
+  #if (empty($emails)) return form_set_error('students', t('Email address is required.'));
+  if (empty($phones)) return form_set_error('students', t('Phone number is required.'));
+
+  if (!empty($emails)) {
+    foreach ($emails as $i => $mail) {
+      $exists = user_load_by_mail($mail->text);
+      if (!empty($exists) && $exists->status !== '0') {
+        if ($exists->uid !== $values->uid) unset($emails[$i]);
+        if (empty($emails)) return drupal_set_message(t('Email already registered: ' . $mail->text), 'error');
+      }
+    }
+  }
+
+//------------------------------
+  #set data
+  $nachhilfe_students_values = array(
+    'firstname' => $values->firstname,
+    'lastname' => $values->lastname,
+    'student_firstname' => $values->student_firstname,
+    'student_lastname' => $values->student_lastname,
+    'street' => $values->street,
+    'city' => $values->city,
+    'zip' => empty($values->zip) ? 0:$values->zip,
+    'schultyp' => empty($values->schultyp) ? '':$values->schultyp,
+    'class' => $values->class,
+    'birthday' => empty($values->birthday) ? 0:strtotime($values->birthday),
+    'gender' => empty($values->gender) ? 'none' : $values->gender,
+  );
+//------------------------------
+  #register user
+  if((!empty($emails))){
+    $email_raw = $emails;
+    $email_raw = array_pop($email_raw);
+  }
+
+  try {
+    if (!empty($values->uid)) {
+      $account = user_load($values->uid);
+      $account->uid = $values->uid;
+      $account->status = 1;
+      $account->name = $values->firstname . ' ' . $values->lastname;
+      if((!empty($emails))){
+        $account->mail = $email_raw->text;
+        $account->init = $email_raw->text;
+      }
+      $account->roles = array(7 => 'Student');
+      $registered = user_save($account);
+    }
+    else {
+      $account = new StdClass();
+      $account->status = 1;
+      $account->name = $values->firstname . ' ' . $values->lastname;
+      $account->pass = user_hash_password($values->pass);
+      if((!empty($emails))){
+        $account->mail = $email_raw->text;
+        $account->init = $email_raw->text;
+      }
+      $account->roles = array(7 => 'Student');
+      $registered = user_save($account);
+    }
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+//------------------------------
+  #register user as student
+  try {
+    if (!empty($values->uid)) {
+      $nachhilfe_students = db_update('nachhilfe_students');
+      $nachhilfe_students->fields($nachhilfe_students_values);
+      $nachhilfe_students->condition('uid', $values->uid);
+      $nachhilfe_students->execute();
+
+      #update student name on events!
+    }
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+  try {
+    if (empty($values->uid)) {
+      $settings['user'] = $registered->uid;
+      $nachhilfe_students_values['uid'] = $registered->uid;
+
+      $nachhilfe_students = db_insert('nachhilfe_students');
+      $nachhilfe_students->fields(array_keys($nachhilfe_students_values));
+      $nachhilfe_students->values($nachhilfe_students_values);
+      $nachhilfe_students->execute();
+
+      /* newuser franchisetaker setup */
+      $franchisetaker = db_select('nachhilfe_roles', 'nr');
+      $franchisetaker->fields('nr');
+      $franchisetaker->condition('nr.uid', $user->uid);
+      $franchisetaker = $franchisetaker->execute()->fetch();
+
+      $role['uid'] = $registered->uid;
+      $role['franchisetaker'] = $franchisetaker->franchisetaker; #$user->uid;
+      $nachhilfe_role = db_insert('nachhilfe_roles');
+      $nachhilfe_role->fields(array_keys($role));
+      $nachhilfe_role->values($role);
+      $nachhilfe_role->execute();
+
+      $query = db_insert('nachhilfe_settings');
+      $query->fields(array_keys($settings));
+      $query->values($settings);
+      $query->execute();
+    }
+  }
+  catch (Exception $e) {
+    $disable_user = db_delete('users'); #no registration
+    $disable_user->condition('uid', $registered->uid);
+    $disable_user->execute();
+    $disable_roles = db_delete('users_roles'); #no registration
+    $disable_roles->condition('uid', $registered->uid);
+    $disable_roles->execute();
+    $disable_student = db_delete('nachhilfe_students'); #no registration
+    $disable_student->condition('uid', $registered->uid);
+    $disable_student->execute();
+    $disable_users_roles = db_delete('users_roles'); #no registration
+    $disable_users_roles->condition('uid', $registered->uid);
+    $disable_users_roles->execute();
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+//------------------------------
+  /*setup phones and emails */
+  if (!empty($values->uid)) { #update
+    $disable_phones = db_delete('nachhilfe_mails');
+    #$disable_phones->fields(array('disabled' => 1));
+    $disable_phones->condition('uid', $values->uid);
+    if (!empty($phones)) $disable_phones->execute();
+
+    $disable_emails = db_delete('nachhilfe_phones');
+    #$disable_emails->fields(array('disabled' => 1));
+    $disable_emails->condition('uid', $values->uid);
+    if (!empty($emails)) $disable_emails->execute();
+  }
+  $phones_db = array();
+  foreach ($phones as $i => $phone) {
+    array_push($phones_db, array(
+        'uid' => (!empty($values->uid) ? $values->uid : $registered->uid),
+        'number' => $phone->text,
+        'type' => $phone->select
+      )
+    );
+  }
+
+  if((!empty($emails))){
+    $emails_db = array();
+    foreach ($emails as $email) {
+      array_push($emails_db, array(
+            'uid' => (!empty($values->uid) ? $values->uid : $registered->uid),
+            'mail' => $email->text,
+            'type' => $email->select
+          )
+        );
+    }
+  }
+
+  try {
+    if (!empty($emails) && !empty($emails_db)) {
+      foreach ($emails_db as $email) {
+        $users_email = db_insert('nachhilfe_mails');
+        $users_email->fields(array_keys((array)$email));
+        $users_email->values((array)$email);
+        $users_email->execute();
+      }
+    }
+    if (!empty($phones_db)) {
+      foreach ($phones_db as $phone) {
+        $users_mobile = db_insert('nachhilfe_phones');
+        $users_mobile->fields(array_keys((array)$phone));
+        $users_mobile->values((array)$phone);
+        $users_mobile->execute();
+      }
+    }
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+//------------------------------
+  #drupal_set_message($email_raw->text."\n".$values->pass, 'warning');
+  #dsfas@deede.de 23UPPF
+//------------------------------
+  if (!empty($values->uid)) {
+    return drupal_set_message(t('Entry updated.'), 'status');
+  }
+  else {
+
+    if (isset($_SESSION['calendar_new_student']) && !empty($registered->uid)) {
+
+      $event_before_student = $_SESSION['calendar_new_student'];
+      #unset($_SESSION['calendar_new_student']);
+
+      $ebday = sprintf("%02d", $event_before_student['starts-date']['field']['date']['day']);
+      $ebmonth = sprintf("%02d", $event_before_student['starts-date']['field']['date']['month']);
+      $ebyear = $event_before_student['starts-date']['field']['date']['year'];
+      $_SESSION['calendar_new_student']['student']['field']['name'] = $values->student_firstname .' '. $values->student_lastname;
+      $_SESSION['calendar_new_student']['hidden']['student'] = $registered->uid;
+
+      drupal_goto('calendar/' . $ebyear . '/' . $ebmonth . '/' . $ebday . '');
+    }
+    return drupal_set_message(t('Entry created successfully.'), 'status');
+
+  }
+}
+function students_birthday_days_month_callback ($form, &$form_state) {
+    $starts_year = $form['students']['birthday']['field']['date']['year']['#value'];
+    $starts_month = $form['students']['birthday']['field']['date']['month']['#value'];
+    $day = drupal_map_assoc(range(1,date('t', strtotime($starts_year .'/'. $starts_month . '/10 00:00:00'))));
+    $form['students']['birthday']['field']['date']['day']['#options'] = $day;
+
+    $commands[] = ajax_command_replace(
+                                '#create-students-birthday-date-day',
+                                drupal_render($form['students']['birthday']['field']['date']['day']));
+    return array('#type' => 'ajax', '#commands' => $commands);
+}
+//---------------------------------------------------------------------------
+function remove_student_phone_submit ($form, &$form_state) {
+  $no = $form_state['triggering_element']['#parents'][2];
+  $field = array_search($no, $form_state['num_phones']);
+  unset($form_state['num_phones'][$field]);
+  $form_state['rebuild'] = true;
+}
+function remove_student_email_submit ($form, &$form_state) {
+  $no = $form_state['triggering_element']['#parents'][2];
+  $field = array_search($no, $form_state['num_emails']);
+  unset($form_state['num_emails'][$field]);
+  $form_state['rebuild'] = true;
+}
+//---------------------------------------------------------------------------
+function add_one_more_student_phone_callback ($form, &$form_state) {
+  $form_state['num_phones'][] = count($form_state['num_phones']);
+  $form_state['rebuild'] = true;
+  return $form['students'];
+}
+function add_one_more_student_phone_submit ($form, &$form_state) {
+  $form_state['num_phones'][] = count($form_state['num_phones']);
+  $form_state['rebuild'] = true;
+}
+function add_one_more_student_email_submit ($form, &$form_state) {
+  $form_state['num_emails'][] = count($form_state['num_emails']);
+  $form_state['rebuild'] = true;
+}
+function student_return_form_callback ($form, &$form_state) {
+  return $form['students'];
+}
+//---------------------------------------------------------------------------
+function students_back_to_calendar ($form, &$form_state){
+  $url = $_GET;
+  drupal_goto('calendar/' . date('Y/m/d', $url['date']));
+}
+//---------------------------------------------------------------------------
+function students_create_form ($form, &$form_state, $student = null) {
+  #$prepend = array('00','01','02','03','04','05','06','07','08','09');
+  #$months = array_combine(range(1,12), array('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'));
+  $phone_options = array('Other', 'Home telephone', 'Office (work)', 'Mobilefunk');
+  $email_options = array('Other', 'Home e-mail', 'Office (work)');
+  $schultyp = array('Grundschule', 'Realschule', 'Gymnasium', 'Mittelschule', 'Berufsschule', 'Other');
+
+  #dpm($_SESSION['calendar_new_student']);
+
+  if (!empty($student)) {
+    $select = db_select('users', 'u');
+    $select->leftJoin('nachhilfe_students', 'ns', 'u.uid = ns.uid');
+    $select->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+    $select->fields('u', array('uid', 'mail'));
+    $select->fields('ns');
+    /*$select->addField('ns','firstname','firstname');
+    $select->addField('ns','lastname','lastname');
+    $select->addField('ns','student_firstname','student_firstname');
+    $select->addField('ns','student_firstname','student_firstname');
+    $select->addField('ns','street','street');
+    $select->addField('ns','city','city');
+    $select->addField('ns','zip','zip');
+    $select->addField('ns','birthday','birthday');
+    $select->addField('ns','gender','gender');
+    $select->addField('ns','class','class');*/
+    $select->addField('u','created','created');
+    $select->addField('ur','rid','role');
+    $select->condition('u.uid', $student);
+    $details = $select->execute()->fetchObject();
+
+    $emails = db_select('nachhilfe_mails', 'ue');
+    $emails->fields('ue');
+    $emails->condition('ue.uid', $student);
+    $emails->condition('ue.disabled', 0);
+    $emails = $emails->execute()->fetchAll();
+
+    $phones = db_select('nachhilfe_phones', 'up');
+    $phones->fields('up');
+    $phones->condition('up.uid', $student);
+    $phones->condition('up.disabled', 0);
+    $phones = $phones->execute()->fetchAll();
+  }else {
+    $details = null;
+    $emails = array();
+    $phones = array();
+  }
+  $form['students'] = array(
+      '#tree' => true,
+      '#prefix' => '<table id="wrap-create-student">',
+      '#suffix' => '</table>',
+  );
+//----------------------------------------------------
+  $form['students']['student']['field'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['students']['student']['field']['value'] = array(
+      '#type' => 'hidden',
+      '#default_value' => null,
+      '#default_value' => isset($details->uid) ? $details->uid:'',
+  );
+//----------------------------------------------------
+  $form['students']['name'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['students']['name']['firstname'] = array(
+      '#title' => 'First name ',
+      '#type' => 'textfield',
+      #'#required' => true,
+      #'#value' => 'true',
+      '#default_value' => isset($details->firstname) ? $details->firstname:'Forth',
+      '#size' => 36,
+      '#prefix' => '<td>',
+      #'#suffix' => '</td>',
+      '#attributes' => array('placeholder' => 'Georgi'),
+  );
+//----------------------------------------------------
+  $form['students']['name']['lastname'] = array(
+      '#title' => 'Last name',
+      '#type' => 'textfield',
+      #'#required' => true,
+      #'#value' => 'true',
+      '#default_value' => isset($details->lastname) ? $details->lastname:'Student',
+      '#size' => 30,
+      #'#prefix' => '<td >',
+      '#suffix' => '</td>',
+      '#attributes' => array('placeholder' => 'Vasile'),
+  );
+//----------------------------------------------------
+//----------------------------------------------------
+  $form['students']['student-name'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['students']['student-name']['firstname'] = array(
+      '#title' => 'Student firstname ',
+      '#type' => 'textfield',
+      '#required' => true,
+      #'#value' => 'true',
+      '#default_value' => isset($details->firstname) ? $details->student_firstname:'Forth',
+      '#size' => 36,
+      '#prefix' => '<td>',
+      #'#suffix' => '</td>',
+      '#attributes' => array('placeholder' => 'Georgi'),
+  );
+//----------------------------------------------------
+  $form['students']['student-name']['lastname'] = array(
+      '#title' => 'Student lastname',
+      '#type' => 'textfield',
+      '#required' => true,
+      #'#value' => 'true',
+      '#default_value' => isset($details->lastname) ? $details->student_lastname:'Student',
+      '#size' => 30,
+      #'#prefix' => '<td >',
+      '#suffix' => '</td>',
+      '#attributes' => array('placeholder' => 'Vasile'),
+  );
+//----------------------------------------------------
+  $form['students']['address'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['students']['address']['street'] = array(
+      '#title' => t('Street and house number'), // Straße und Hausnummer (inkl. Anschriftenzusatz),
+      '#type' => 'textfield',
+      #'#required' => true,
+      #'#value' => 'true',
+      '#default_value' => isset($details->street) ? $details->street:'Wettersteinstr 10',
+      '#size' => 26,
+      '#prefix' => '<td>',
+      #'#suffix' => '</td>',
+      '#attributes' => array('placeholder' => t('Marienplatzstreet 10')),
+  );
+//----------------------------------------------------
+  $form['students']['address']['city'] = array(
+      '#title' => t('City'),
+      '#type' => 'textfield',
+      #'#required' => true,
+      #'#value' => 'true',
+      '#default_value' => isset($details->city) ? $details->city:'Germering',
+      '#size' => 26,
+      '#attributes' => array('placeholder' => 'München'),
+  );
+  $form['students']['address']['zip'] = array(
+      '#title' => t('ZIP.'),
+      '#type' => 'textfield',
+      #'#required' => true,
+      #'#value' => '123456',
+      '#default_value' => isset($details->zip) && $details->zip !== 0  ? $details->zip:'82110',
+      '#size' => 6,
+      #'#prefix' => '<td>',
+      '#suffix' => '</td>',
+      '#attributes' => array('placeholder' => '123456'),
+  );
+//----------------------------------------------------
+  $form['students']['others'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+//----------------------------------------------------
+  $form['students']['others']['schultyp'] = array(
+      '#title' => t('School type'),
+      '#type' => 'select',
+      "#empty_option"=>t('None'),
+      '#options' =>  drupal_map_assoc($schultyp),
+      '#default_value' => isset($details->schultyp) ? $details->schultyp:1,
+      #'#required' => true,
+      '#prefix' => '<td>',
+      #'#suffix' => '</td></tr>',
+  );
+//----------------------------------------------------
+  $form['students']['others']['class'] = array(
+      '#title' => 'Class',
+      '#type' => 'select',
+      "#empty_option"=>t('None'),
+      '#options' =>  drupal_map_assoc(range(1,12)),
+      '#default_value' => isset($details->class) ? $details->class:0,
+      '#required' => true,
+      #'#prefix' => '<td>',
+      #'#suffix' => '</td>',
+  );
+//----------------------------------------------------
+  $form['students']['others']['birthday'] = array(
+      '#title' => t('Birthday'),
+      '#type' => 'textfield',
+      #'#required' => true,
+      #'#value' => '123456',
+      '#default_value' => isset($details->birthday) ? date('d-m-Y', $details->birthday):'11-11-1999',
+      '#size' => 13,
+      #'#prefix' => '<td>',
+      #'#suffix' => '</td>',
+      '#attributes' => array('placeholder' => 'dd-mm-yyyy'),
+  );
+//----------------------------------------------------
+  $form['students']['others']['gender'] = array(
+    '#title' => t('Gender'),
+      '#type' => 'select',
+      "#empty_option"=>t('None'),
+      '#options' => array(
+          'male' => t('Männlich'),
+          'female'  => t('Weiblich'),
+      ),
+      #'#required' => true,
+      '#default_value' => isset($details->gender) ? $details->gender:'',
+      #'#prefix' => '<td>',
+      '#suffix' => '</td>',
+  );
+//----------------------------------------------------
+  /*$form['students']['registration']['header'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['students']['registration']['header']['title'] = array(
+      '#markup' => '<th>Registration date</th>',
+  );
+  $form['students']['registration']['field']  = array(
+      '#prefix' => '<tr class="fix-date-select">',
+      '#suffix' => '</tr>'
+  );
+  $form['students']['registration']['field']['date'] = array(
+      '#type' => 'container',
+      '#prefix' => '<td colspan="2">',
+      '#suffix' => '</td>'
+  );
+  $form['students']['registration']['field']['date']['year'] = array(
+      '#type' => 'select',
+      '#options' => drupal_map_assoc(range(1900, 2050)),
+      #'#default_value' => date('Y'),
+      '#default_value' => isset($details->registered) ? date('Y', $details->registered): date('Y'),
+      '#id' => 'students-starts-date-year'
+  );
+  $form['students']['registration']['field']['date']['year-slash'] = array(
+      '#suffix' => '<span class="float-left slash">-</span>',
+  );
+  $form['students']['registration']['field']['date']['month'] = array(
+      '#type' => 'select',
+      '#options' => $months,
+      #'#default_value' => date('n'),
+      '#default_value' => isset($details->registered) ? date('n', $details->registered): date('n'),
+      '#id' => 'students-starts-date-month',
+      '#ajax' => array(
+          'callback' => 'students_registration_days_month_callback'
+      )
+  );
+  $form['students']['registration']['field']['date']['month-slash'] = array(
+      '#suffix' => '<span class="float-left slash">-</span>',
+  );
+  $form['students']['registration']['field']['date']['day'] = array(
+      '#type' => 'select',
+      '#options' => drupal_map_assoc(range(1, 31)),
+      #'#default_value' => date('j'),
+      '#default_value' => isset($details->registered) ? date('j', $details->registered): date('j'),
+      '#id' => 'create-students-registration-date-day'
+  );*/
+//----------------------------------------------------
+  if (empty($form_state['num_phones']) || !isset($form_state['num_phones'])){
+    if (empty($phones)) $form_state['num_phones'] = [0];
+    else $form_state['num_phones'] = range(0,count($phones));
+  }
+
+  $num_phones = $form_state['num_phones'];
+
+  $form['students']['phone']['header'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>',
+  );
+  $form['students']['phone']['header']['title'] = array(
+    '#markup' => '<th><label>Phone <span class="form-required" title="This field is required.">*</span></label></th>',
+  );
+  foreach ($num_phones as $i) {
+    $select_value = count($phones) > $i ? $phones[$i]->type : 0;
+    $text_value = count($phones) > $i ? $phones[$i]->number : '';
+
+    $form['students']['phone'][$i]['field'] = array(
+      '#prefix' => '<tr class="row-multiple-fields">',
+      '#suffix' => '</tr>'
+    );
+    $form['students']['phone'][$i]['field']['select'] = array(
+      '#type' => 'select',
+      '#options' => $phone_options,
+      '#value' =>  $select_value,
+      #'#default_value' => '0',
+      '#prefix' => '<td>',
+    );
+    $form['students']['phone'][$i]['field']['text'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Phone'),
+      '#size' => 43,
+      '#attributes' => array('placeholder' => 'Phone'),
+      '#value' => '09090807807',
+      '#default_value' => $text_value,
+    );
+
+    if ($i > 0) {
+      $form['students']['phone'][$i]['field']['phone_remove'] = array(
+          '#type' => 'submit',
+          '#value' => '',
+          '#name' => 'remove_phone_' . $i,
+          '#suffix' => '</td>',
+          '#attributes' => array('class' => array('submit-remove'), 'title'=>array('Remove phone.')),
+          '#limit_validation_errors' => array(),
+          '#submit' => array('remove_student_phone_submit'),
+          '#ajax' => array(
+            'callback' => 'student_return_form_callback',
+            'wrapper' => 'wrap-create-student'
+          )
+      );
+    }
+  } //end foreach
+
+  $form['students']['phone'][0]['field']['text']['#required'] = true;
+
+  $form['students']['phone']['button'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>'
+  );
+  $form['students']['phone']['button']['add_phone'] = array(
+      '#type' => 'submit',
+      '#value' => t('Phone'),
+      '#attributes' => array('name'=>'add_phone', 'class' => array('submit-plus')),
+      '#prefix' => '<td>',
+      '#suffix' => '</td>',
+      '#limit_validation_errors' => array(),
+      '#submit' => array('add_one_more_student_phone_submit'),
+      '#ajax' => array(
+        'callback' => 'student_return_form_callback',
+        #'callback' => 'add_one_more_student_phone_callback',
+        'wrapper' => 'wrap-create-student'
+      )
+  );
+//----------------------------------------------------
+  if (empty($form_state['num_emails']) || !isset($form_state['num_emails'])){
+    if (empty($emails)) $form_state['num_emails'] = [0];
+    else $form_state['num_emails'] = range(0,count($emails));
+  }
+
+  $num_emails = $form_state['num_emails'];
+  $form['students']['email']['header'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>',
+  );
+  $form['students']['email']['header']['title'] = array(
+    #'#markup' => '<th><label>Email <span class="form-required" title="This field is required.">*</span></label></th>',
+    '#markup' => '<th><label>Email</label></th>',
+  );
+  foreach ($num_emails as $i) {
+    $select_value = count($emails) > $i ? $emails[$i]->type : 0;
+    $text_value = count($emails) > $i ? $emails[$i]->mail : '';
+
+    $form['students']['email'][$i]['field'] = array(
+      '#prefix' => '<tr class="row-multiple-fields">',
+      '#suffix' => '</tr>'
+    );
+    $form['students']['email'][$i]['field']['select'] = array(
+      '#type' => 'select',
+      '#options' => $email_options,
+      '#value' => $select_value,
+      #'#default_value' => '0',
+      '#prefix' => '<td>',
+      //'#suffix' => '</th>'
+    );
+    $form['students']['email'][$i]['field']['text'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Email'),
+      '#size' => 43,
+      '#attributes' => array('placeholder' => t('example@email.com'), 'class' => array('')),
+      '#default_value' => $text_value,
+      '#value' => 'Forth@student.com',
+    );
+    if ($i > 0) {
+      $form['students']['email'][$i]['field']['email_remove'] = array(
+        '#type' => 'submit',
+        '#value' => '',
+        '#name' => 'remove_email_' . $i,
+        '#suffix' => '</td>',
+        '#attributes' => array('class' => array('submit-remove'), 'title'=>array('Remove e-mail.')),
+        '#limit_validation_errors' => array(),
+        '#submit' => array('remove_student_email_submit'),
+        '#ajax' => array(
+          'callback' => 'student_return_form_callback',
+          'wrapper' => 'wrap-create-student'
+        )
+      );
+    }
+  } //end foreach
+  #$form['students']['email'][0]['field']['text']['#required'] = true;
+  $form['students']['email']['button'] = array(
+    '#prefix' => '<tr>',
+    '#suffix' => '</tr>'
+  );
+  $form['students']['email']['button']['add_email'] = array(
+    '#type' => 'submit',
+    '#value' => t('E-mail'),
+    '#attributes' => array('name'=>'add_email', 'class' => array('submit-plus')),
+    '#prefix' => '<td>',
+    '#suffix' => '</td>',
+    '#limit_validation_errors' => array(),
+    '#submit' => array('add_one_more_student_email_submit'),
+    '#ajax' => array(
+      'callback' => 'student_return_form_callback',
+      'wrapper' => 'wrap-create-student'
+    )
+  );
+//----------------------------------------------------
+  /*
+  if(!empty($details)){
+    $form['students']['password']= array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+    );
+    $form['students']['password']['repeat_password'] = array (
+      '#type' => 'fieldset',
+      '#title' =>  t('Change password'),
+      '#collapsible' => false,
+      '#collapsed' => false,
+      '#prefix' => '<td><br><br>',
+      '#suffix' => '<br></td>',
+    );
+    $form['students']['password']['repeat_password']['field'] = array(
+      '#title' => t('Repeat new password'),
+      '#type' => 'password_confirm',
+      #'#required' => true,
+      '#size' => 36,
+      '#attributes' => array('placeholder' => t('*****')),
+    );
+  }
+  */
+//----------------------------------------------------
+//----------------------------------------------------
+  $form['students']['save']['row'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['students']['save']['row']['button'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save'),
+      '#prefix' => '<td>',
+      '#suffix' => '</td>',
+      '#attributes' => array('class' => array('submit-save')),
+      '#submit' => array('students_create_form_submit'),
+      #'#ajax' => array('callback' => 'students_create_form_validate'),
+  );
+//----------------------------------------------------
+//----------------------------------------------------
+  /*
+  if (isset($url['page']) && $url['page'] == 'calendar'){
+    $form['students']['save']['row']['back'] = array(
+        '#type' => 'submit',
+        '#value' => t('Back'),
+        #'#prefix' => '<td>',
+        '#suffix' => '</td>',
+        '#limit_validation_errors' => array(),
+        '#attributes' => array('class' => array('submit-save', 'margin-left')),
+        '#submit' => array('students_back_to_calendar'),
+        #'#ajax' => array('callback' => 'students_create_form_validate'),
+    );
+  }
+  */
+//----------------------------------------------------
+  return $form;
+}
+//---------------------------------------------------------------------------
+function students_disable_submit_no ($form, &$form_state) {
+  drupal_goto('/students');
+}
+function students_disable_submit_yes ($form, &$form_state) {
+  $uid = $form_state['values']['student'];
+  try {
+    $disable_user = db_update('users');
+    $disable_user->fields(array('status' =>0));
+    $disable_user->condition('uid', $uid);
+    $disable_user->execute();
+    /*
+    $disable_phones = db_update('nachhilfe_phones');
+    $disable_phones->fields(array('disabled' =>1));
+    $disable_phones->condition('uid', $uid);
+    $disable_phones->execute();
+
+    $disable_mails = db_update('nachhilfe_mails');
+    $disable_mails->fields(array('disabled' =>1));
+    $disable_mails->condition('uid', $uid);
+    $disable_mails->execute();
+    */
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+
+  return drupal_goto('students');
+}
+function students_disable_form ($form, &$form_state, $student = null) {
+  $select = db_select('users', 'u');
+  $select->leftJoin('nachhilfe_students', 'ud', 'u.uid = ud.uid');
+  $select->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+  $select->leftJoin('role', 'r', 'ur.rid = r.rid');
+  $select->fields('u', array('uid', 'mail'));
+  $select->addField('ud','student_firstname','firstname');
+  $select->addField('ud','student_lastname','lastname');
+  $select->addField('ud','street','street');
+  #$select->addField('ud','city','city');
+  $select->addField('ud','birthday','birthday');
+  $select->addField('ud','gender','gender');
+  #$select->addField('ud','registered','registered');
+  $select->addField('r','name','role');
+  $select->condition('u.uid', $student);
+  $details = $select->execute()->fetchObject();
+
+  if (empty($details->uid)) {
+    $build['no-student-selected'] = array(
+      '#type' => 'markup',
+      '#markup' => t('<p>No student selected from the list..</p>'),
+    );
+    return $build;
+  }
+
+  $build['disable'] = array(
+    '#type' => 'container',
+  );
+  $build['disable']['student'] = array(
+    '#type' => 'value',
+    '#value' =>$student
+  );
+  $build['disable']['name'] = array(
+    '#type' => 'markup',
+    '#markup' => '<h3>' . $details->firstname . ' ' . $details->lastname . ' (' .$details->role  . ')</h3>',
+  );
+  $build['disable']['question'] = array(
+    '#type' => 'markup',
+    '#markup' => t('Are you sure you want to disable selected student?') . '</br></br>',
+  );
+  $build['disable']['yes'] = array(
+    '#type' => 'submit',
+    '#value' => t('Yes'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('students_disable_submit_yes'),
+  );
+  $build['disable']['no'] = array(
+    '#type' => 'submit',
+    '#value' => t('No'),
+    '#attributes' => array('class' => array('submit-save')),
+    '#submit' => array('students_disable_submit_no'),
+    '#prefix' => '&nbsp;&nbsp;'
+    #'#ajax' => array('students_disable_submit_no'),
+  );
+
+  return $build;
+}
+function students_enable_form ($form, &$form_state, $student = null) {
+  if (empty($student)) return drupal_goto('students');
+  try {
+    $enable_user = db_update('users');
+    $enable_user->fields(array('status' =>1));
+    $enable_user->condition('uid', $student);
+    $enable_user->execute();
+  }
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
+
+  return drupal_goto('students');
+}
+//---------------------------------------------------------------------------
+function students_list() {
+  global $user;
+  $rows = array();
+  $build = array();
+  #$gender = array(t('männlich'), t('weiblich'));
+  $query = db_select('nachhilfe_roles', 'nr');
+  $query->fields('nr');
+  $query->condition('nr.uid', $user->uid);
+  $nr = $query->execute()->fetch();
+
+  $header = array(
+    #array('data' => t('uid'), 'field' => 'u.uid', 'sort' => 'asc'),
+    array('data' => t('firstname'), 'field' => 'ud.firstname', 'sort' => 'title'),
+    array('data' => t('lastname'), 'field' => 'ud.lastname', 'sort' => 'title'),
+    #array('data' => t('street'), 'field' => 'ud.street', 'sort' => 'title'),
+    array('data' => t('city'), 'field' => 'ud.city', 'sort' => 'title'),
+    array('data' => t('birthday'), 'field' => 'ud.birthday', 'sort' => 'asc'),
+    #array('data' => t('gender'), 'field' => 'ud.gender', 'sort' => 'title'),
+    array('data' => t('created'), 'field' => 'ud.created', 'sort' => 'asc'),
+    #array('data' => t('role'), 'field' => 'r.name', 'sort' => 'title'),
+    array('data' => t('mail'), 'field' => 'u.mail', 'sort' => 'title'),
+    array('data' => t('actions')),
+  );
+
+  $select = db_select('users', 'u')
+    ->extend('TableSort')->orderByHeader($header)
+    ->extend('PagerDefault');
+  $select->leftJoin('nachhilfe_students', 'ud', 'u.uid = ud.uid');
+  $select->leftJoin('nachhilfe_roles', 'nr', 'u.uid = nr.uid');
+  $select->leftJoin('users_roles', 'ur', 'u.uid = ur.uid');
+  $select->leftJoin('role', 'r', 'ur.rid = r.rid');
+  $select->fields('u', array('uid'));
+  $select->addField('u','status','status');
+  $select->addField('ud','student_firstname','student_firstname');
+  $select->addField('ud','student_lastname','student_lastname');
+  #$select->addField('ud','street','street');
+  $select->addField('ud','city','city');
+  $select->addField('ud','birthday','birthday');
+  #$select->addField('ud','gender','gender');
+  $select->addField('u','created','created');
+  #$select->addField('r','name','role');
+  $select->addField('u','mail','mail');
+  $select->condition('r.rid', 7, '=');
+  if((int)$user->uid !== 1 || (int)$user->uid !== 2) $select->condition('nr.franchisetaker', $nr->franchisetaker, '=');
+  $entries = $select->execute()->fetchAll();
+#dpm($entries);
+  if (empty($entries)) {
+    $build['message'] = array(
+      '#type' => 'markup',
+      '#markup' => t('No content available.'),
+    );
+    /*
+    $build['redirect'] = array(
+      '#type' => 'submit',
+      '#value' => t('Create'),
+      '#attributes' => array('class' => array('submit-save')),
+      '#submit' => array('employees_redirect'),
+      '#prefix' => '<br><br>'
+    );
+    */
+    return $build;
+  }
+
+  foreach ($entries as $entry) {
+    #dpm($entry->birthday);
+    $rows[] = array(
+      'firstname' => $entry->student_firstname,
+      'lastname' => $entry->student_lastname,
+      'city' => ucfirst($entry->city),
+      'birthday' => $entry->birthday == 0 ? '' : date('Y-m-d', $entry->birthday),
+      'created' => date('Y-m-d', $entry->created),
+      'E-mail' => $entry->mail,
+      'actions' => l(t('Profile'), 'profile/' . $entry->uid)
+      . '&nbsp;|&nbsp;'
+      . l(t('Edit'), 'students/create/' . $entry->uid)
+      . ($entry->uid !== $user->uid && $entry->uid !== $nr->franchisetaker? '&nbsp;|&nbsp;'
+         . ($entry->status === '1'? l(t('Disable'), 'students/disable/' . $entry->uid) : l(t('Enable'), 'students/enable/' . $entry->uid))
+      : '')
+    );
+
+  }
+
+  $build['table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#attributes' => array (
+      'class' => array('list-students-table table'),
+    ),
+  );
+  $build['pager'] = array(
+    '#theme' => 'pager',
+  );
+
+  return $build;
+}
+//---------------------------------------------------------------------------
+function students_permission() {
+	return array('view students page' => array('title' => t('Acces students page')));
+}
+function students_access($op, $node, $account) {
+  switch ($op) {
+    case 'view':
+      if (user_access('view students page', $account)) {
+        return NODE_ACCESS_ALLOW;
+      }
+    break;
+    default:
+      return NODE_ACCESS_IGNORE;
+    break;
+  }
+}
+function students_menu () {
+  $items = array();
+
+  $items['students'] = array(
+    'title' => 'Students',
+    'page callback' => 'students_list',
+    'access callback' => 'user_access',
+    'access arguments' => array('view students page'),
+  );
+  $items['students/list'] = array(
+    'title' => 'List',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  $items['students/create'] = array(
+    'title' => 'Add entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('students_create_form', 2),
+    'access callback' => 'user_access',
+    'access arguments' => array('view students page'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -9,
+  );
+  /*
+  $items['students/update'] = array(
+    'title' => 'Update entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('students_update_form', 2),
+    'access callback' => TRUE,
+    #'type' => MENU_LOCAL_ACTION,
+    'type' => MENU_LOCAL_ACTION,
+    'weight' => -5,
+  );
+  */
+  $items['students/disable'] = array(
+    'title' => 'Disable entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('students_disable_form', 2),
+    'access callback' => 'user_access',
+    'access arguments' => array('view students page'),
+    #'type' => MENU_CALLBACK,
+    'type' => MENU_LOCAL_ACTION,
+  );
+  $items['students/enable'] = array(
+    'title' => 'Disable entry',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('students_enable_form', 2),
+    'access callback' => 'user_access',
+    'access arguments' => array('view students page'),
+    #'type' => MENU_CALLBACK,
+    'type' => MENU_LOCAL_ACTION,
+  );
+  return $items;
+}
+//---------------------------------------------------------------------------
+?>
