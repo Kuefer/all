@@ -746,5 +746,9 @@
   padding-left: 25px;
   padding-top: 5px;
 }
+#events-block select,
+#events-block input{
+  border-width: 0px !important
+}
 /* end checkbox edit all repeated events */
 /*---------------------------------------------------------------------------*/

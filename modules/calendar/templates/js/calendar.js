@@ -458,8 +458,5 @@
         $(this).fixEventsWidth();
         $(this).initEvents();
         $(this).initGroups();
-      //$('#block-calendar-events').show().siblings().hide();
-
-
     });
 } (jQuery, Drupal));
