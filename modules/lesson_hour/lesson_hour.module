@@ -476,6 +476,12 @@ function mark_submit ($form, &$form_state) {
   if (empty($form_state['values']['mark']) && empty($form_state['values']['points']))
     return drupal_set_message('Mark or Points field is required.', 'error');
 
+  if (!empty($form_state['values']['mark']) && $form_state['values']['mark'] > 6.00)
+    return drupal_set_message('Mark field is required.', 'error');
+
+  #if (!empty($form_state['values']['points']) && $form_state['values']['points'] > 6.00)
+  #  return drupal_set_message('Points field is required.' . (17-3*6), 'error');
+
   $query = db_select('users','u');
   $query->fields('u');
   $query->condition('u.mail', $event->student_mail);

@@ -317,7 +317,7 @@
 #event-student-tag{
   padding:4px;
   margin:0;
-  border:1px solid lightgray;
+  border:0px solid lightgray;
   overflow:auto;
   display:none;
   width:240px;
