@@ -51,7 +51,7 @@ function employees_create_form_submit ($form, &$form_state) {
     if (strlen($mail['field']['text']) !== 0 && valid_email_address($mail['field']['text'])) array_push($emails, (object)$mail['field']);
   }
   foreach ($form_state['input']['employees']['phone'] as $i => $phone) {
-    $phone['field']['text'] = preg_replace('/\D/', '', $mail['field']['text']);
+    $phone['field']['text'] = preg_replace('/\D/', '', $phone['field']['text']);
     if (!empty($phone['field']['text'])) array_push($phones, (object)$phone['field']);
   }
   if (empty($emails)) return form_set_error('email', t('Please enter a valid E-mail addres.'));
