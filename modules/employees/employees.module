@@ -42,7 +42,7 @@ function employees_create_form_submit ($form, &$form_state) {
 //------------------------------
   #set new password variable
   if(isset($form_state['input']['employees']['password']['repeat_password']['field']) )
-  $new_pass = $form_state['input']['employees']['password']['repeat_password']['field'];
+  $new_pass = $form_state['input']['employees']['password']['repeat_password']['field']['pass1'];
   else $new_pass = null;
 //------------------------------
   #little form validation
@@ -335,17 +335,18 @@ function employees_create_form_submit ($form, &$form_state) {
   if(!empty($new_pass) && !empty($values->uid)) {
     $params = array(
       'subject' => "Your password has changed \n",
-      'body' => "Hello, " . $values->firstname . ' ' . $values->lastname . " \n" .
+      'body' => "Dear " . $values->firstname . ' ' . $values->lastname . ", \n\n" .
         "We wanted to let you know that your Mathe-Nachilfe password was changed. \n" .
-        "If you did not perform this action, you can recover access by entering \n" .
-        $emails[0]->text . " into the form at http://" . $_SERVER['SERVER_NAME'] . "/user/password \n"
+        "If you did not perform this action, you can recover access by entering" .
+        $emails[0]->text . " into the form at http://" . $_SERVER['SERVER_NAME'] . "/user/password \n\n"
+        "Best regards Mathe-Nachhilfe team."
     );
 
     try {
       drupal_mail('employees', 'new_password', $emails[0]->text, language_default(), $params, variable_get('site_mail', 'Mathe-Nachhilfe'), TRUE);
     }
     catch (Exception $e) {
-      return drupal_set_message($e->getMessage(), 'error');
+      drupal_set_message($e->getMessage(), 'error');
     }
   }
 //------------------------------
@@ -366,7 +367,7 @@ function employees_create_form_submit ($form, &$form_state) {
       drupal_mail('employees', 'new_employee', $emails[0]->text, language_default(), $params, variable_get('site_mail', 'Mathe-Nachhilfe'), TRUE);
     }
     catch (Exception $e) {
-      return drupal_set_message($e->getMessage(), 'error');
+      drupal_set_message($e->getMessage(), 'error');
     }
   }
   //------------------------------
