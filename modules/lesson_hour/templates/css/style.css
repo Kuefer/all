@@ -171,3 +171,7 @@ svg circle:hover{
 }
 /*end #schoolbook-form*/
 
+/*#other*/
+fieldset#edit-lessons{
+  overflow:hidden;
+}

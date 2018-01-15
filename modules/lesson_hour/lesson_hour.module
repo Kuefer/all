@@ -126,9 +126,6 @@ function schoolbook_form ($form, &$form_state) {
   $student->time = !empty($student->time)? $student->time: $event->start ;
   $student->weekday = !empty($student->weekday)? $student->weekday: date('N', $event->start);
 
-  #dpm($event);
-  #dpm($student);
-
   $form['schoolbook'] = array (
     '#title' => t('Student'),
     '#type' => 'fieldset',
@@ -841,15 +838,15 @@ function remarks_list ($node, &$form_state) {
   $or_franchiser->condition('hr.teacher', $user->uid);
   $or_franchiser->condition('nr.franchisetaker', $user->uid);
 
-  $query = db_select('users', 'u');
-  $query->leftJoin('nachhilfe_hour_remark', 'hr', 'hr.student = u.uid');
+  $entries = db_select('users', 'u');
+  $entries->leftJoin('nachhilfe_hour_remark', 'hr', 'hr.student = u.uid');
   #$query->leftJoin('nachhilfe_roles', 'nr', 'nr.uid = hr.teacher');
-  $query->fields('hr');
-  $query->condition('u.mail', $event->student_mail);
+  $entries->fields('hr');
+  $entries->condition('u.mail', $event->student_mail, '=');
   #$query->condition($or_franchiser);
-  $query->orderBy('hr.id', 'DESC');
-  $query->range(0, $form_state['range']);
-  $entries = $query->execute()->fetchAll();
+  $entries->orderBy('hr.id', 'DESC');
+  $entries->range(0, $form_state['range']);
+  $entries = $entries->execute()->fetchAll();
 
   $build['remarks'] = array (
     '#type' => 'fieldset',
@@ -860,7 +857,7 @@ function remarks_list ($node, &$form_state) {
     '#suffix' => '</div>'
   );
 
-  if (empty($entries)){
+  if (empty($entries) || empty($entries[0]->id)){
     $build['remarks']['hours'] = array(
       '#theme' => 'table',
       '#header' => array(),
