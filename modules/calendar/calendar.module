@@ -690,6 +690,15 @@ function all_events_form ($form, &$form_state){
     '#suffix' => '</table>',
   );
 
+  if(empty($all_events)){
+    $block['events']['None']  = array(
+      '#type' => 'markup',
+      '#markup' => '<p>None</p>',
+      '#prefix' => '<tr><td>',
+      '#suffix' => '</td><tr>'
+    );
+  }
+  
   foreach($all_events as $i => $event){
     if($i > 39) continue;
     $block['events'][$i]['table']  = array(
