@@ -359,11 +359,11 @@ function employees_create_form_submit ($form, &$form_state) {
 
     $params = array(
       'subject' => "Your registration at Mathe-Nachhilfe",
-      'body' => "Hello " . $values->firstname . ' ' . $values->lastname . "," .
-        "A new user account as ". $email_role ." has been created for you at Mathe-Nachhilfe: " . $_SERVER['SERVER_NAME'] . 
-        "Your login details are as follows:" .
-        "E-mail: " . $email_raw->text .
-        "Password: " . $values->pass
+      'body' => "Hello " . $values->firstname . ' ' . $values->lastname . ",\n" .
+        "A new user account as ". $email_role ." has been created for you at Mathe-Nachhilfe: " . $_SERVER['SERVER_NAME'] . "\n" .
+        "Your login details are as follows:\n" .
+        "E-mail: " . $email_raw->text . "\n" .
+        "Password: " . $values->pass . "\n"
     );
 
     try {
