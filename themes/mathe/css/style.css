@@ -247,6 +247,9 @@ main .welcome input[type="text"],
 main .welcome input[type="password"]{
   width:94%!important;
 }
+#edit-name .description {
+  display:none;
+}
 /* end welcome */
 
 /* header */

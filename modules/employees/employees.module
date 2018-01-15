@@ -103,14 +103,14 @@ function employees_create_form_submit ($form, &$form_state) {
   }
 //------------------------------
   #register user
-  try {
-    $franchisetaker = db_select('users', 'n');
-    $franchisetaker->leftJoin('nachhilfe_roles', 'nr', 'nr.uid = n.uid');
-    $franchisetaker->fields('nr', array('franchisetaker'));
-    $franchisetaker->fields('n', array('mail'));
-    $franchisetaker->condition('nr.uid', $user->uid);
-    $franchisetaker = $franchisetaker->execute()->fetch();
+  $franchisetaker = db_select('users', 'n');
+  $franchisetaker->leftJoin('nachhilfe_roles', 'nr', 'nr.uid = n.uid');
+  $franchisetaker->fields('nr', array('franchisetaker'));
+  $franchisetaker->fields('n', array('mail'));
+  $franchisetaker->condition('nr.uid', $user->uid);
+  $franchisetaker = $franchisetaker->execute()->fetch();
 /*-------------------------------------------------------------------------------------------*/
+  try {
     if (!empty($values->uid)) { #edit user
       $nachhilfe_employees = db_update('nachhilfe_employees');
       $nachhilfe_employees->fields($db_data);
@@ -185,10 +185,14 @@ function employees_create_form_submit ($form, &$form_state) {
         $nachhilfe_role->condition('uid', $registered->uid);
         $nachhilfe_role->execute();
       }
-
-    } # end edit user
+    }
+  } # end edit user
+  catch (Exception $e) {
+    return drupal_set_message($e->getMessage(), 'error');
+  }
 /*-------------------------------------------------------------------------------------------*/
-    else { #new user
+  try { #new user
+    if(empty($values->uid)) {
       $settings['user'] = $registered->uid;
       $db_data['uid'] = $registered->uid;
       $role['uid'] = $registered->uid;
@@ -255,7 +259,6 @@ function employees_create_form_submit ($form, &$form_state) {
     }
   }
   catch (Exception $e) {
-    /*
     user_delete($registered->uid);
 
     $disable_roles = db_delete('nachhilfe_roles'); #no registration
@@ -273,7 +276,7 @@ function employees_create_form_submit ($form, &$form_state) {
     $disable_users_roles = db_delete('users_roles'); #no registration
     $disable_users_roles->condition('uid', $registered->uid);
     $disable_users_roles->execute();
-    */
+
     return drupal_set_message($e->getMessage(), 'error');
   }
 //------------------------------
@@ -352,18 +355,15 @@ function employees_create_form_submit ($form, &$form_state) {
 
   /* new account email*/
   if (empty($values->uid)) {
-    if($email_raw->text == 'service@mathe-nachhilfe.com') $email_role = 'Franchisetaker';
-    else $email_role = $def_roles[$values->role];
+    $email_role = $def_roles[$values->role];
 
     $params = array(
       'subject' => "Your registration at Mathe-Nachhilfe",
-      'body' => "<p>Hello " . $values->firstname . ' ' . $values->lastname . ",</p>" .
-        "<p>A new user account as ". $email_role ." has been created for you at Mathe-Nachhilfe: <a href=" . $_SERVER['SERVER_NAME'] . ">" . $_SERVER['SERVER_NAME'] . "</a>.</p>" .
-        "<p>Your login details are as follows:</p>" .
-        "<span>E-mail: " . $email_raw->text . "</span>" .
-        "<br>" .
-        "<span>Password: " . $values->pass . "</span>" .
-        "<br>"
+      'body' => "Hello " . $values->firstname . ' ' . $values->lastname . "," .
+        "A new user account as ". $email_role ." has been created for you at Mathe-Nachhilfe: " . $_SERVER['SERVER_NAME'] . 
+        "Your login details are as follows:" .
+        "E-mail: " . $email_raw->text .
+        "Password: " . $values->pass
     );
 
     try {
