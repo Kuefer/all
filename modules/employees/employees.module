@@ -64,7 +64,7 @@ function employees_create_form_submit ($form, &$form_state) {
     $exists = user_load_by_mail($mail->text);
     if (!empty($exists)) {
       if ($exists->uid !== $values->uid) unset($emails[$i]);
-      if (empty($emails)) return form_set_error('email', t('Email already registered.'));
+      if (empty($emails)) return form_set_error('email', t('Email already registered: ' . $mail->text));
     }
   }
 //------------------------------
