@@ -109,7 +109,7 @@ function user_info($node, &$form_state){
   $form['general'] = array(
     '#type' => 'fieldset',
     '#title' => t('General info'),
-    '#collapsible' => true,
+    '#collapsible' => false,
     '#collapsed' => false,
     '#prefix' => '<div class="wrap-fieldset">',
     '#suffix' => '</div>'

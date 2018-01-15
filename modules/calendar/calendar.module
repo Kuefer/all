@@ -685,7 +685,7 @@ function all_events_form ($form, &$form_state){
   }
   
   $block['events'] = array(
-    
+    '#type' => 'markup',
     '#prefix' => '<table class="table-all-events table">',
     '#suffix' => '</table>',
   );

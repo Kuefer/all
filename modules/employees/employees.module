@@ -40,29 +40,26 @@ function employees_create_form_submit ($form, &$form_state) {
     'gender' => $values->gender,
   );
 //------------------------------
-//------------------------------
-  if(isset($form_state['values']['employees']['password']['repeat_password']['field']) )
-  $new_pass = $form_state['values']['employees']['password']['repeat_password']['field'];
+  #set new password variable
+  if(isset($form_state['input']['employees']['password']['repeat_password']['field']) )
+  $new_pass = $form_state['input']['employees']['password']['repeat_password']['field'];
   else $new_pass = null;
-
 //------------------------------
-  #['input']['employees']['phone'][0]['field']['text']
-
+  #little form validation
   foreach ($form_state['input']['employees']['email'] as $i => $mail) {
-    $mail['field']['text'] = strtolower(preg_replace('/\s+/', '', $mail['field']['text']));
+    $mail['field']['text'] = strtolower(preg_replace('/\s/', '', $mail['field']['text']));
     if (strlen($mail['field']['text']) !== 0 && valid_email_address($mail['field']['text'])) array_push($emails, (object)$mail['field']);
   }
-  if (empty($emails)) return form_set_error('email', t('Please enter a valid E-mail addres.'));
-
   foreach ($form_state['input']['employees']['phone'] as $i => $phone) {
+    $phone['field']['text'] = preg_replace('/\D/', '', $mail['field']['text']);
     if (!empty($phone['field']['text'])) array_push($phones, (object)$phone['field']);
   }
+  if (empty($emails)) return form_set_error('email', t('Please enter a valid E-mail addres.'));
   if (empty($phones)) return form_set_error('email', t('Please enter a valid phone addres.'));
-
-  #little form validation
-  if (empty($values->firstname) && empty($values->lastname) && empty($emails)) {
-    return form_set_error('employees', t('First name, Last name and at least one Email address is required.'));
-  }
+  if (empty($values->firstname)) return form_set_error('students', t('First name is required.'));
+  if (empty($values->lastname)) return form_set_error('students', t('Last name is required.'));
+//------------------------------
+  #format emails
   foreach ($emails as $i => $mail) {
     $exists = user_load_by_mail($mail->text);
     if (!empty($exists)) {
@@ -72,9 +69,6 @@ function employees_create_form_submit ($form, &$form_state) {
   }
 //------------------------------
   #register user
-  $email_raw = $emails;
-  $email_raw = array_pop($email_raw);
-
   try {
     if (!empty($values->uid)) { #update
       $account = user_load($values->uid);
@@ -82,8 +76,8 @@ function employees_create_form_submit ($form, &$form_state) {
       if(!empty($new_pass)) $account->pass = user_hash_password($new_pass);
       $account->status = 1;
       $account->name = $values->firstname . ' ' . $values->lastname;
-      $account->mail = $email_raw->text;
-      $account->init = $email_raw->text;
+      $account->mail = $emails[0]->text;
+      $account->init = $emails[0]->text;
       $account->roles = array(DRUPAL_AUTHENTICATED_RID => 'authenticated user', $values->role => $def_roles[$values->role]);
       $registered = user_save($account);
     }
@@ -92,24 +86,24 @@ function employees_create_form_submit ($form, &$form_state) {
       $account->status = 1;
       $account->name = $values->firstname . ' ' . $values->lastname;
       $account->pass = user_hash_password($values->pass);
-      $account->mail = $email_raw->text;
-      $account->init = $email_raw->text;
+      $account->mail = $emails[0]->text;
+      $account->init = $emails[0]->text;
       $account->roles = array(DRUPAL_AUTHENTICATED_RID => 'authenticated user', $values->role => $def_roles[$values->role]);
       $registered = user_save($account);
     }
   }
   catch (Exception $e) {
-    return drupal_set_message($e->getMessage(), 'error');
+    if(isset($e->errorInfo[2])) return drupal_set_message($e->errorInfo[2], 'error');
+    else return drupal_set_message($e->getMessage(), 'error');
   }
-//------------------------------
-  #register user
   $franchisetaker = db_select('users', 'n');
   $franchisetaker->leftJoin('nachhilfe_roles', 'nr', 'nr.uid = n.uid');
   $franchisetaker->fields('nr', array('franchisetaker'));
   $franchisetaker->fields('n', array('mail'));
   $franchisetaker->condition('nr.uid', $user->uid);
   $franchisetaker = $franchisetaker->execute()->fetch();
-/*-------------------------------------------------------------------------------------------*/
+//------------------------------
+  #edit user
   try {
     if (!empty($values->uid)) { #edit user
       $nachhilfe_employees = db_update('nachhilfe_employees');
@@ -186,11 +180,12 @@ function employees_create_form_submit ($form, &$form_state) {
         $nachhilfe_role->execute();
       }
     }
-  } # end edit user
+  } 
   catch (Exception $e) {
     return drupal_set_message($e->getMessage(), 'error');
   }
-/*-------------------------------------------------------------------------------------------*/
+//------------------------------
+  #new user
   try { #new user
     if(empty($values->uid)) {
       $settings['user'] = $registered->uid;
@@ -280,7 +275,7 @@ function employees_create_form_submit ($form, &$form_state) {
     return drupal_set_message($e->getMessage(), 'error');
   }
 //------------------------------
-  /*setup phones and emails */
+  #disable old phones and emails for edited users
   if (!empty($values->uid)) { #update
     $disable_phones = db_update('nachhilfe_mails');
     $disable_phones->fields(array('disabled' => 1));
@@ -292,6 +287,8 @@ function employees_create_form_submit ($form, &$form_state) {
     $disable_emails->condition('uid', $values->uid);
     if (!empty($emails)) $disable_emails->execute();
   }
+//------------------------------
+  // setup phones and emails
   $phones_db = array();
   foreach ($phones as $i => $phone) {
     array_push($phones_db, array(
@@ -301,7 +298,6 @@ function employees_create_form_submit ($form, &$form_state) {
       )
     );
   }
-
   $emails_db = array();
   foreach ($emails as $email) {
     array_push($emails_db, array(
@@ -311,7 +307,8 @@ function employees_create_form_submit ($form, &$form_state) {
         )
       );
   }
-
+//------------------------------
+  #register phnes and emails
   try {
     if (!empty($emails_db)) {
       foreach ($emails_db as $email) {
@@ -334,26 +331,25 @@ function employees_create_form_submit ($form, &$form_state) {
     return drupal_set_message($e->getMessage(), 'error');
   }
 //------------------------------
-//------------------------------
-  /* updated password email */
+  # email updated password 
   if(!empty($new_pass) && !empty($values->uid)) {
     $params = array(
-      'subject' => "Your password has changed",
-      'body' => "<p>Hello, " . $values->firstname . ' ' . $values->lastname . "</p>" .
-        "<p>We wanted to let you know that your Mathe-Nachilfe password was changed.</p>" .
-        "<p>If you did not perform this action, you can recover access by entering " .
-        $email_raw->text . " into the form at <a href=\"http://" . $_SERVER['SERVER_NAME'] . "/user/password\">http://" . $_SERVER['SERVER_NAME'] . "/user/password.</a></p>"
+      'subject' => "Your password has changed \n",
+      'body' => "Hello, " . $values->firstname . ' ' . $values->lastname . " \n" .
+        "We wanted to let you know that your Mathe-Nachilfe password was changed. \n" .
+        "If you did not perform this action, you can recover access by entering \n" .
+        $emails[0]->text . " into the form at http://" . $_SERVER['SERVER_NAME'] . "/user/password \n"
     );
 
     try {
-      drupal_mail('employees', 'new_password', $email_raw->text, language_default(), $params, variable_get('site_mail', 'Mathe-Nachhilfe'), TRUE);
+      drupal_mail('employees', 'new_password', $emails[0]->text, language_default(), $params, variable_get('site_mail', 'Mathe-Nachhilfe'), TRUE);
     }
     catch (Exception $e) {
       return drupal_set_message($e->getMessage(), 'error');
     }
   }
-
-  /* new account email*/
+//------------------------------
+  # email the user for new account
   if (empty($values->uid)) {
     $email_role = $def_roles[$values->role];
 
@@ -362,22 +358,19 @@ function employees_create_form_submit ($form, &$form_state) {
       'body' => "Hello " . $values->firstname . ' ' . $values->lastname . ",\n" .
         "A new user account as ". $email_role ." has been created for you at Mathe-Nachhilfe: " . $_SERVER['SERVER_NAME'] . "\n" .
         "Your login details are as follows:\n" .
-        "E-mail: " . $email_raw->text . "\n" .
+        "E-mail: " . $emails[0]->text . "\n" .
         "Password: " . $values->pass . "\n"
     );
 
     try {
-      drupal_mail('employees', 'new_employee', $email_raw->text, language_default(), $params, variable_get('site_mail', 'Mathe-Nachhilfe'), TRUE);
+      drupal_mail('employees', 'new_employee', $emails[0]->text, language_default(), $params, variable_get('site_mail', 'Mathe-Nachhilfe'), TRUE);
     }
     catch (Exception $e) {
       return drupal_set_message($e->getMessage(), 'error');
     }
   }
   //------------------------------
-  //------------------------------
-  #if (empty($values->uid)) drupal_set_message($email_raw->text."\n".$values->pass, 'warning');
-  //------------------------------
-  /* post message */
+  # post message
   if (!empty($values->uid)) {
      return drupal_set_message(t('Entry updated.'), 'status');
   }
