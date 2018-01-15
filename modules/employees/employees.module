@@ -339,7 +339,7 @@ function employees_create_form_submit ($form, &$form_state) {
         "We wanted to let you know that your Mathe-Nachilfe password was changed. \n" .
         "If you did not perform this action, you can recover access by entering" .
         $emails[0]->text . " into the form at http://" . $_SERVER['SERVER_NAME'] . "/user/password \n\n" .
-        "Best regards Mathe-Nachhilfe team."
+        "--  Mathe-Nachhilfe team"
     );
 
     try {
@@ -356,11 +356,12 @@ function employees_create_form_submit ($form, &$form_state) {
 
     $params = array(
       'subject' => "Your registration at Mathe-Nachhilfe",
-      'body' => "Hello " . $values->firstname . ' ' . $values->lastname . ",\n" .
+      'body' => "Dear " . $values->firstname . ' ' . $values->lastname . ",\n\n" .
         "A new user account as ". $email_role ." has been created for you at Mathe-Nachhilfe: " . $_SERVER['SERVER_NAME'] . "\n" .
-        "Your login details are as follows:\n" .
+        "Your login details are as follows:\n\n" .
         "E-mail: " . $emails[0]->text . "\n" .
-        "Password: " . $values->pass . "\n"
+        "Password: " . $values->pass . "\n\n" .
+        "--  Mathe-Nachhilfe team \n"
     );
 
     try {
