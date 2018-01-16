@@ -554,12 +554,10 @@ fieldset.collapsible .fieldset-legend .summary{
   width:100%;
   clear:both;
   margin:0px;
-  
 }
 .maintenance-page #header #logo-title #logo{
   display:none;
 }  
-
 .maintenance-page #header{
   background-color: #1382b0;
   border-bottom-color: #0b8cc1;
@@ -570,9 +568,8 @@ fieldset.collapsible .fieldset-legend .summary{
   color: #fff;
 }
 .maintenance-page #header #name-and-slogan{
-    margin:20px 0;
-    float:left;
-  
+  margin:20px 0;
+  float:left;
 }
 .maintenance-page #header #logo-title,
 .maintenance-page #container #main{
@@ -581,14 +578,12 @@ fieldset.collapsible .fieldset-legend .summary{
   border:0px solid lightgray;
   overflow:auto;
 }
-
 .maintenance-page #footer-wrapper{
   float:left;
   width:100%;
   clear:both;
   margin:0px;
 }
-
 /* end maintenance-page*/
 
 /* general*/

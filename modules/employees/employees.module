@@ -1173,7 +1173,7 @@ function employees_list() {
     array('data' => t('actions')),
   );
 
-  $select = db_select('userss', 'u')
+  $select = db_select('users', 'u')
     ->extend('TableSort')->orderByHeader($header)
     ->extend('PagerDefault');
   $select->leftJoin('nachhilfe_employees', 'ud', 'u.uid = ud.uid');
