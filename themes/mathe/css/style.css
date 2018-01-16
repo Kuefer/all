@@ -545,6 +545,52 @@ fieldset.collapsible .fieldset-legend .summary{
 }
 /* end pager*/
 
+/* maintenance-page*/
+.maintenance-page {
+  background-color:#fff;
+}
+.maintenance-page #page{
+  float:left;
+  width:100%;
+  clear:both;
+  margin:0px;
+  
+}
+.maintenance-page #header #logo-title #logo{
+  display:none;
+}  
+
+.maintenance-page #header{
+  background-color: #1382b0;
+  border-bottom-color: #0b8cc1;
+  color: #fff;
+  margin-bottom: 20px;
+}
+.maintenance-page #header a{
+  color: #fff;
+}
+.maintenance-page #header #name-and-slogan{
+    margin:20px 0;
+    float:left;
+  
+}
+.maintenance-page #header #logo-title,
+.maintenance-page #container #main{
+  width:960px !important;
+  margin:0 auto;
+  border:0px solid lightgray;
+  overflow:auto;
+}
+
+.maintenance-page #footer-wrapper{
+  float:left;
+  width:100%;
+  clear:both;
+  margin:0px;
+}
+
+/* end maintenance-page*/
+
 /* general*/
 #page-title{
   margin: -10px -10px 10px -10px;
