@@ -1326,10 +1326,19 @@ function button_update_groups_color_callback ($form, &$form_state) {
 function button_rename_group_submit ($form, &$form_state) {
   var_dump('####');
 }
-function button_delete_group_no_callback ($form, &$form_state) {
-
+function button_disable_group_no_submit ($form, &$form_state) {
+return drupal_goto('/calendar');
 }
-function button_delete_group_submit ($form, &$form_state) {
+function button_disable_group_yes_submit ($form, &$form_state) {
+  $user_id = db_select('dav_principals', 'dp');
+  $user_id->leftJoin('dav_calendarinstances', 'dci', 'dci.principaluri = dp.uri');
+  $user_id->condition('dci.calendarid', $form_state['input']['groups']['hidden']['group']);
+  $user_id->addField('dp','uid','uid');
+  $user_id = $user_id->execute()->fetchObject();
+  
+  return drupal_goto('/employees/disable/' . $user_id->uid);
+  
+  /*
   try {
     $delete_calendar = db_delete('dav_calendarinstances');
     $delete_calendar->condition('calendarid', $form_state['input']['groups']['hidden']['group']);
@@ -1339,6 +1348,7 @@ function button_delete_group_submit ($form, &$form_state) {
   catch(Exception $e) {
     return drupal_set_message($e->getMessage(), 'error');
   }
+  */
 }
 function groups_block ($form, &$form_state) {
   global $user;
@@ -1450,36 +1460,36 @@ function groups_block ($form, &$form_state) {
         '#prefix' => '<span class="hr-group">',
         '#suffix' => '</span>'
       );
-      /*
-      $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset'] = array(
+      
+      $form['groups'][$y][$i]['colors-list']['select']['options']['disable-fieldset'] = array(
         '#type' => 'fieldset',
-        '#title' => t('Delete'),
+        '#title' => t('Disable group'),
         '#collapsible' => true,
         '#collapsed' => true,
-        '#prefix' => '<div class="delete-group">',
+        '#prefix' => '<div class="disable-group">',
         '#suffix' => '</div>',
-        '#id' => 'delete-group',
+        '#id' => 'disable-group',
       );
       
-      $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset']['question'] = array(
+      $form['groups'][$y][$i]['colors-list']['select']['options']['disable-fieldset']['question'] = array(
         '#type' => 'item',
-        '#markup' => t('Are you sure you want to delete calendar?'),
+        '#markup' => t('Are you sure you want to disable calendar?'),
       );
-      $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset']['yes'] = array(
+      $form['groups'][$y][$i]['colors-list']['select']['options']['disable-fieldset']['yes'] = array(
         '#type' => 'submit',
         '#value' => t('Yes'),
         '#attributes' => array('class' => array('submit-save')),
         '#limit_validation_errors' => array(),
-        '#submit' => array('button_delete_group_submit'),
-        #'#ajax' => array('callback' => 'button_delete_group_callback')
+        '#submit' => array('button_disable_group_yes_submit'),
+        #'#ajax' => array('callback' => 'button_disable_group_callback')
       );
-      $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset']['no'] = array(
+      $form['groups'][$y][$i]['colors-list']['select']['options']['disable-fieldset']['no'] = array(
         '#type' => 'submit',
         '#value' => t('No'),
-        '#attributes' => array('class' => array('submit-save delete-group-no')),
-        '#ajax' => array('callback' => 'button_delete_group_no_callback')
+        '#attributes' => array('class' => array('submit-save disable-group-no')),
+        '#submit' => array('callback' => 'button_disable_group_no_submit')
+        #'#ajax' => array('callback' => 'button_disable_group_no_callback')
       );
-      */
 /*-------------------*/
     }
     $form['groups'][$y]['divide'] = array(

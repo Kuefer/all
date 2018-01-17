@@ -259,7 +259,7 @@
     border: 1px solid lightgray;
 }
 */
-.delete-group .delete-group-no{
+.disable-group .disable-group-no{
   float:right;
 }
 .group-block #back-group {
