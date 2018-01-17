@@ -636,6 +636,7 @@ function employees_create_form ($form, &$form_state, $employee = null) {
       '#default_value' => (empty($text_value) ? '1111-11111-1111'  : $text_value),
       #'#suffix' => '</td>',
       '#size' => 40,
+      '#maxlength' => 47,
       '#title' => t('Phone'),
     );
     if ($i > 0) {

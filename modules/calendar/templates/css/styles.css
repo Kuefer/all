@@ -370,10 +370,11 @@
 }
 .calendar-all-day,
 .calendar-day {
-    overflow: hidden;
-    background-color: transparent;
-    border: 0px solid #d3d3d3;
-    border-bottom: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: transparent;
+  border: 0px solid #d3d3d3;
+  border-bottom: none;
 }
 .calendar-all-day .all-day,
 .calendar-all-day .all-day .table-head,
@@ -440,7 +441,7 @@
   opacity:0.9;
   color:#fff;
   top: 0px;
-  overflow: auto;
+  overflow:hidden;
   text-overflow: ellipsis;
   width: 100%;
   cursor: default;
@@ -466,10 +467,6 @@
     width: 100px;
     height: 10px;
     background-color: blue;
-}
-.calendar-day .event .event-content-hours {
-  text-overflow: ellipsis;
-  overflow: hidden; 
 }
 /* end calendar-day*/
 /*---------------------------------------------------------------------------*/

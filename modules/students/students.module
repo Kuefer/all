@@ -582,6 +582,7 @@ function students_create_form ($form, &$form_state, $student = null) {
       '#type' => 'textfield',
       '#title' => t('Phone'),
       '#size' => 43,
+      '#maxlength' => 47,
       '#attributes' => array('placeholder' => 'Phone'),
       '#default_value' => $text_value,
       #'#value' => '09090807807',
