@@ -1373,7 +1373,7 @@ function groups_block ($form, &$form_state) {
 
       $form['groups'][$y][$i] = array(
           '#type' => 'item',
-          '#prefix' => '<tr class="' . $groupselected . '">',
+          '#prefix' => '<tr class="' . $groupselected . '"></br>',
           '#suffix' => '</tr>'
       );
       $form['groups'][$y][$i]['checkbox'] = array(
@@ -1450,6 +1450,7 @@ function groups_block ($form, &$form_state) {
         '#prefix' => '<span class="hr-group">',
         '#suffix' => '</span>'
       );
+      /*
       $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset'] = array(
         '#type' => 'fieldset',
         '#title' => t('Delete'),
@@ -1459,6 +1460,7 @@ function groups_block ($form, &$form_state) {
         '#suffix' => '</div>',
         '#id' => 'delete-group',
       );
+      
       $form['groups'][$y][$i]['colors-list']['select']['options']['delete-fieldset']['question'] = array(
         '#type' => 'item',
         '#markup' => t('Are you sure you want to delete calendar?'),
@@ -1477,6 +1479,7 @@ function groups_block ($form, &$form_state) {
         '#attributes' => array('class' => array('submit-save delete-group-no')),
         '#ajax' => array('callback' => 'button_delete_group_no_callback')
       );
+      */
 /*-------------------*/
     }
     $form['groups'][$y]['divide'] = array(
