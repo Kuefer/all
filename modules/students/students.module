@@ -662,6 +662,7 @@ function students_create_form ($form, &$form_state, $student = null) {
       '#size' => 43,
       '#attributes' => array('placeholder' => t('example@email.com'), 'class' => array('')),
       '#default_value' => $text_value,
+      '#maxlength' => 120
       #'#value' => 'fifth@student.com',
     );
     if ($i > 0) {
