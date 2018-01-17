@@ -933,6 +933,10 @@ function employees_disable_form ($form, &$form_state, $employee = null) {
   $select->condition('u.uid', $employee);
   $employee = $select->execute()->fetchObject();
 
+  if($employee->franchisetaker == $employee->uid) {
+    drupal_set_message("You can't disable your own account!", 'error');
+    return drupal_goto('/employees');
+  }
 #--------------------------------------------------------------------
   #substitute teacher form /git
 #--------------------------------------------------------------------
