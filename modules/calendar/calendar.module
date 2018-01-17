@@ -437,9 +437,10 @@ function calendar_form ($form, &$form_state) {
             }
             */
 
-            $duration = strtotime(date('H:i', $event->end)) - strtotime(date('H:i', $event->start));
-            $duration = $duration / 60 -5; // - padding if box-sizing
-
+            $_diferenta = strtotime(date('H:i:s', $event->end)) - strtotime(date('H:i:s', $event->start));
+            $duration = $_diferenta / 60; // - padding if box-sizing
+            $duration = $duration + ($duration / 60) - 6;
+            
             if(!empty($event->student_mail)){
               $students = db_select('users','n');
               $students->leftJoin('users_roles', 'ur', 'n.uid = ur.uid');
