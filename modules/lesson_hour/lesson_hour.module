@@ -480,7 +480,7 @@ function mark_submit ($form, &$form_state) {
     return drupal_set_message('Mark field is required.', 'error');
 
   #if (!empty($form_state['values']['points']) && $form_state['values']['points'] > 6.00)
-  #  return drupal_set_message('Points field is required.' . (17-3*6), 'error');
+  #  return drupal_set_message('Points field is required.' . (18-3*6), 'error');
 
   $query = db_select('users','u');
   $query->fields('u');
@@ -496,7 +496,7 @@ function mark_submit ($form, &$form_state) {
 
   if (!empty($form_state['values']['mark']) && empty($form_state['values']['points'])){
     $data['mark'] = $form_state['values']['mark'];
-    $data['points'] = 17-3*$form_state['values']['mark'];
+    $data['points'] = 18-3*$form_state['values']['mark'];
   }
   if (empty($form_state['values']['mark']) && !empty($form_state['values']['points'])){
     $data['mark'] = (17-$form_state['values']['mark'])/3;
