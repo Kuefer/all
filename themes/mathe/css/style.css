@@ -20,14 +20,11 @@ label{
   font-stretch: normal;
   font-weight:normal;
 }
-h2{
-  font-size:105%;
-}
 h3{
   font-size:110%;
 }
 h2, h3 {
-  color:#E95D0F;
+  color:#444951;
 }
 /* end thml */
 

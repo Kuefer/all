@@ -568,7 +568,7 @@ function calendar_block_view ($delta = '') {
     break;
     case 'all_events':
       $block = array(
-        'subject' => t('Events'),
+        'subject' => t('Last events'),
         'content' => drupal_get_form('all_events_form'),
       );
     break;
