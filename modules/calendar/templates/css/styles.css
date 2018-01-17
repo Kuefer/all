@@ -467,6 +467,10 @@
     height: 10px;
     background-color: blue;
 }
+.calendar-day .event .event-content-hours {
+  text-overflow: ellipsis;
+  overflow: hidden; 
+}
 /* end calendar-day*/
 /*---------------------------------------------------------------------------*/
 /* autocomplete */

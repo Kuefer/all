@@ -314,6 +314,7 @@
       $(document).fillEventForm($(this).data());
       //$('.page-right').show();
       $('#block-calendar-events').show().siblings().hide();
+      $('.event').css();
     });
 //----------------
     $('#event-starts-hour, #event-starts-minute, #event-ends-hour, #event-ends-minute').change(function () {

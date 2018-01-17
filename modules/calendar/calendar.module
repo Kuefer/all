@@ -54,6 +54,7 @@ function calendar_theme () {
 }
 //----------------------------------------------------
 function calendar_session () {
+  dpm(strlen('wqweeqweeqqwqwqwededededqwqwqwqwqwqedeedededded'));
   global $user;
   module_load_include('inc', 'dav', 'includes/class_extensions');
   $pdo = Database::getConnection();
@@ -976,7 +977,7 @@ function events_block () {
         '#attributes' => array('placeholder' => t('None')),
         '#prefix' => '<tr><td>',
         '#suffix' => '</td></tr>',
-        '#maxlength' => 2000
+        '#maxlength' => 47
     );
 //----------------------------------------------------
     $form['event']['nhus']['field']['type']= array(
