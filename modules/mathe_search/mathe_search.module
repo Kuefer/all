@@ -386,7 +386,7 @@ END:VEVENT
         '#type' => 'markup',
         '#markup' => '<div class="search-result">'
         . '<a href="/profile/' . $employee->uid . '"><span class="search-type">Employee</span></a>'
-          . '<br>&nbsp;&nbsp;'
+          . '<br>'
           . '<span class="search-title">Name: ' . $employee->firstname . ' ' . $employee->lastname . ',&nbsp;</span>'
           . '<span class="search-title">Address:  ' . $employee->street . ',&nbsp;</span>'
           . '<span class="search-title">City: ' . $employee->city . '</span>'
@@ -424,7 +424,7 @@ END:VEVENT
         '#type' => 'markup',
         '#markup' => '<div class="search-result">'
         . '<a href="/profile/' . $student->uid . '"><span class="search-type">Students</span></a>'
-          . '<br>&nbsp;&nbsp;'
+          . '<br>'
           . '<span class="search-title">' . $student->firstname . ' ' . $student->lastname . ',&nbsp;</span>'
           . '<span class="search-title">' . implode('-',str_split($student->number, 4)) . ',&nbsp;</span>'
           . '<span class="search-title">' . $student->street . ',&nbsp;</span>'
@@ -438,7 +438,7 @@ END:VEVENT
     #$land
       $build['wrap']['no-results'] = array(
         '#type' => 'markup',
-        '#markup' => '<div class="search-result"><p>No results for <b>' . $land. '</b></p></div>'
+        '#markup' => '<div class="search-result"><p>Your search yielded no results for <b>' . $land. '</b></p></div>'
       );
   }
   
