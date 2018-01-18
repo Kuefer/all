@@ -11,3 +11,13 @@
 .page-search .new-caldav {
     margin: 10px 0;
 }
+
+/* general block css */
+.sitemap-table tr{
+  background-color: transparent !important;
+}
+.sitemap-table tr td, 
+.sitemap-table tr th{
+  border: 0px !important;
+  margin:5px!important;
+}

@@ -19,6 +19,81 @@ function general_node_access($op, $node, $account) {
   }
 }
 //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+function general_block_info () {
+  $blocks['sitemap'] = array(
+    'info' => t('(block footer) Site map'),
+    'cache' => DRUPAL_NO_CACHE
+  );
+  return $blocks;
+}
+function general_block_view ($delta = '') {
+  switch ($delta) {
+    case 'sitemap':
+      $block = array(
+        #'subject' => t('Site map'),
+        #'content' => drupal_get_form('sitemap_menu_block'),
+      );
+    break;
+    default:
+        $block = null;
+    break;
+  }
+  return $block;
+}
+//----------------------------------------------------------------------------
+function sitemap_menu_block ($form, &$form_state) {  
+  $form['map'] = array(
+    '#type' => 'container',
+    '#markup' => 'Calendar',
+    '#prefix' => '<table class="sitemap-table">',
+    '#suffix' => '</table>'
+  );
+  $form['map']['calendar'] = array(
+    '#type' => 'markup',
+    '#markup' => 'Calendar',
+    '#prefix' => '<tr><td><a href="/calendar">',
+    '#suffix' => '</a></td></tr>'
+  );
+  $form['map']['employees'] = array(
+    '#type' => 'markup',
+    '#markup' => 'Employees',
+    '#prefix' => '<tr><td><a href="/employees">',
+    '#suffix' => '</a></td></tr>'
+  );
+  $form['map']['employees-create'] = array(
+    '#type' => 'markup',
+    '#markup' => ' - Add entry',
+    '#prefix' => '<tr><td><a href="/employees/create">',
+    '#suffix' => '</a></td></tr>'
+  );
+  $form['map']['lesson-hour'] = array(
+    '#type' => 'markup',
+    '#markup' => 'Lesson hour',
+    '#prefix' => '<tr><td><a href="/hour">',
+    '#suffix' => '</a></td></tr>'
+  );
+  $form['map']['students'] = array(
+    '#type' => 'markup',
+    '#markup' => 'Students',
+    '#prefix' => '<tr><td><a href="/students">',
+    '#suffix' => '</a></td></tr>'
+  );
+  $form['map']['students-create'] = array(
+    '#type' => 'markup',
+    '#markup' => ' - Add entry',
+    '#prefix' => '<tr><td><a href="/students/create">',
+    '#suffix' => '</a></td></tr>'
+  );
+  $form['map']['Search'] = array(
+    '#type' => 'markup',
+    '#markup' => 'Search',
+    '#prefix' => '<tr><td><a href="/search">',
+    '#suffix' => '</a></td></tr>'
+  );
+  return $form;
+}
+//----------------------------------------------------------------------------
 function general_redirect_403($form, &$form_states) {
   #drupal_goto('user/login');
 
@@ -32,7 +107,6 @@ function general_redirect_403($form, &$form_states) {
     drupal_goto('user/login', $dest);
   }
 }
-
 function general_redirect_404($form, &$form_states) {
   #drupal_goto('user/login');
 

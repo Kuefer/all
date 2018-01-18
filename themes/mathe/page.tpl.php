@@ -86,6 +86,7 @@
 
   <footer>
     <div class="container">
+      <?php if(!empty($page['footer'])) print render($page['footer']); ?>
       <span class="copyright"><?php print date('F Y');?> <strong>Mathe-Nachhilfe</strong>.</span>
     </div>
   </footer>
