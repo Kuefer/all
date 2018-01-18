@@ -152,7 +152,6 @@ function calendar_session () {
     array_push($principals, $calendars);
   }
 
-  
   $events = array();
   $filter = array(
     'name' => 'VCALENDAR',
@@ -197,12 +196,12 @@ function calendar_session () {
         $end = strtotime((string) $data->VEVENT->DTEND);
 
         if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
-
-        if (isset($rrule['until'])) {
+        
+        if (isset($rrule['freq'])) {
           #is the same week day?
           if (date('w', $start) !== date('w', strtotime(date('Y-m-d', $date)))) continue;
           #is repeted event with end date
-          if (strtotime($rrule['until']) < strtotime(date('Y-m-d H:i:s', $date) . '-1 day')) continue;
+          if(isset($rrule['until'])) if (strtotime($rrule['until']) < strtotime(date('Y-m-d H:i:s', $date) . '-1 day')) continue;
         }
         else{
           if ($end < $date) continue;
@@ -274,7 +273,7 @@ function calendar_session () {
   }
   /* ------------------------------------------------------------------- */
   /* DEBUG -------------------------------------------------------- */
-  #$events= array();
+  #dpm($events);
   /* ------------------------------------------------------------------- */
 
   return array($date, $settings, $groups, $events);
@@ -444,95 +443,95 @@ function calendar_form ($form, &$form_state) {
         $key = date('Ymd\THis', strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' ));
         if (!array_key_exists($key, $events)) continue;
 
-          foreach ($events[$key] as $i => $event) {
-            /*
-            if (isset($event->rrule)) {
-              if (date('w', $event->start) !== date('w', strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' ))) continue;
-              if (strtotime($event->rrule['until']) < strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' )) continue;
-            }else {
-              if ($event->end < strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' )) continue;
-            }
-            */
+        foreach ($events[$key] as $i => $event) {
+          /*
+          if (isset($event->rrule)) {
+            if (date('w', $event->start) !== date('w', strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' ))) continue;
+            if (strtotime($event->rrule['until']) < strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' )) continue;
+          }else {
+            if ($event->end < strtotime(date('Y-m-d', $date) . $h . ':' .$m . ':00' )) continue;
+          }
+          */
 
-            $_diferenta = strtotime(date('H:i:s', $event->end)) - strtotime(date('H:i:s', $event->start));
-            $duration = $_diferenta / 60; // - padding if box-sizing
-            $duration = $duration + ($duration / 60) - 6;
-            
-            if(!empty($event->student_mail)){
-              $students = db_select('users','n');
-              $students->leftJoin('users_roles', 'ur', 'n.uid = ur.uid');
-              $students->leftJoin('nachhilfe_students', 'ns', 'n.uid = ns.uid');
-              $students->leftJoin('nachhilfe_roles', 'nr', 'n.uid = nr.uid');
-              $students->leftJoin('nachhilfe_phones', 'np', 'n.uid = np.uid');
-              $students->leftJoin('nachhilfe_mails', 'nm', 'nm.uid = n.uid');
-              $students->fields('ns');
-              $students->fields('np');
-              #$students->condition('n.status', 1);
-              $students->condition('ur.rid', 7);
-              $students->condition('nm.mail', $event->student_mail);
-              $students->condition('nm.disabled', 0);
-              $students = $students->execute()->fetch();
+          $_diferenta = strtotime(date('H:i:s', $event->end)) - strtotime(date('H:i:s', $event->start));
+          $duration = $_diferenta / 60; // - padding if box-sizing
+          $duration = $duration + ($duration / 60) - 6;
 
-              $event->studentid = $students->uid;
-              $event->class = $students->class;
-              $event->schultyp = $students->schultyp;
-              $event->number = $students->number;
-              $event->student_firstname = $students->student_firstname;
-              $event->student_lastname = $students->student_lastname;
-            }
+          if(!empty($event->student_mail)){
+            $students = db_select('users','n');
+            $students->leftJoin('users_roles', 'ur', 'n.uid = ur.uid');
+            $students->leftJoin('nachhilfe_students', 'ns', 'n.uid = ns.uid');
+            $students->leftJoin('nachhilfe_roles', 'nr', 'n.uid = nr.uid');
+            $students->leftJoin('nachhilfe_phones', 'np', 'n.uid = np.uid');
+            $students->leftJoin('nachhilfe_mails', 'nm', 'nm.uid = n.uid');
+            $students->fields('ns');
+            $students->fields('np');
+            #$students->condition('n.status', 1);
+            $students->condition('ur.rid', 7);
+            $students->condition('nm.mail', $event->student_mail);
+            $students->condition('nm.disabled', 0);
+            $students = $students->execute()->fetch();
 
-            $titleHours = date('H:i', $event->start) . ' - ' . date('H:i', $event->end)
-              . (!empty($event->summary)? ' ' . $event->summary: '');
+            $event->studentid = $students->uid;
+            $event->class = $students->class;
+            $event->schultyp = $students->schultyp;
+            $event->number = $students->number;
+            $event->student_firstname = $students->student_firstname;
+            $event->student_lastname = $students->student_lastname;
+          }
 
-            $title = (!empty($event->class)? 'Klass ' . $event->class: '')
-              . (!empty($event->schultyp)? ' ' . $event->schultyp: '')
-              . (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description: '');
+          $titleHours = date('H:i', $event->start) . ' - ' . date('H:i', $event->end)
+            . (!empty($event->summary)? ' ' . $event->summary: '');
 
-            $titleStudent = (!empty($event->student_name)? ' ' . $event->student_name: '')
-              . (!empty($event->number)? ' ' . implode('-',str_split($event->number, 4)): '');
+          $title = (!empty($event->class)? 'Klass ' . $event->class: '')
+            . (!empty($event->schultyp)? ' ' . $event->schultyp: '')
+            . (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description: '');
 
-            $form['day'][$h]['container'][$m]['event'][$i] = array (
-              '#type' => 'container',
-              '#attributes' => array(
-                'class' => array('event'),
-                ## starts event data
-                'data-id' => !empty($event->id) ?$event->id : 0,
-                'data-starts_date' => !empty($event->start) ?date('Y-m-d', $event->start) :'',
-                'data-starts_time' => !empty($event->start) ?date('H:i:s', $event->start) :'',
-                'data-ends_date' => !empty($event->end) ?date('Y-m-d', $event->end) :'',
-                'data-ends_time' => !empty($event->end) ?date('H:i:s', $event->end) :'',
-                'data-groups' => !empty($event->calendarid) ?$event->calendarid :'',
-                'data-nush' => !empty($event->description) ?$event->description : 'None',
-                'data-repeat_event' => (!empty($event->rrule['freq']) && $event->rrule['freq'] == 'WEEKLY')? 1:0,
-                'data-repeat_end' => !empty($event->rrule['until']) ? 1:0,
-                'data-repeat_end_date' => !empty($event->rrule['until']) ?date('Y-m-d', strtotime($event->rrule['until'])) :0,
-                'data-color' => !empty($event->color) ?$event->color :'',
-                'data-student' => !empty($event->studentid) ?$event->studentid :'',
-                'data-student_firstname' => !empty($event->student_firstname) ?$event->student_firstname :'',
-                'data-student_lastname' => !empty($event->student_lastname) ?$event->student_lastname :'',
-                'data-class' => !empty($event->class) ?$event->class :'',
-                'data-school' => !empty($event->schultyp) ?$event->schultyp :'',
-                'data-title' => !empty($event->summary) ?$event->summary :'',
-                ##ends event data
-                'style' => array(
-                  'background-color:' . (!empty($event->color) ? $event->color : 'green') . ';',
-                  'height:' . $duration . 'px;'
-                )
-              ),
+          $titleStudent = (!empty($event->student_name)? ' ' . $event->student_name: '')
+            . (!empty($event->number)? ' ' . implode('-',str_split($event->number, 4)): '');
 
-              '#states' => array(
-                'visible' => array(
-                  ':input[data-group="' . (!empty($event->calendarid) ?$event->calendarid :null) . '"]' => array('checked' => true),
-                )
+          $form['day'][$h]['container'][$m]['event'][$i] = array (
+            '#type' => 'container',
+            '#attributes' => array(
+              'class' => array('event'),
+              ## starts event data
+              'data-id' => !empty($event->id) ?$event->id : 0,
+              'data-starts_date' => !empty($event->start) ?date('Y-m-d', $event->start) :'',
+              'data-starts_time' => !empty($event->start) ?date('H:i:s', $event->start) :'',
+              'data-ends_date' => !empty($event->end) ?date('Y-m-d', $event->end) :'',
+              'data-ends_time' => !empty($event->end) ?date('H:i:s', $event->end) :'',
+              'data-groups' => !empty($event->calendarid) ?$event->calendarid :'',
+              'data-nush' => !empty($event->description) ?$event->description : 'None',
+              'data-repeat_event' => (!empty($event->rrule['freq']) && $event->rrule['freq'] == 'WEEKLY')? 1:0,
+              'data-repeat_end' => !empty($event->rrule['until']) ? 1:0,
+              'data-repeat_end_date' => !empty($event->rrule['until']) ?date('Y-m-d', strtotime($event->rrule['until'])) :0,
+              'data-color' => !empty($event->color) ?$event->color :'',
+              'data-student' => !empty($event->studentid) ?$event->studentid :'',
+              'data-student_firstname' => !empty($event->student_firstname) ?$event->student_firstname :'',
+              'data-student_lastname' => !empty($event->student_lastname) ?$event->student_lastname :'',
+              'data-class' => !empty($event->class) ?$event->class :'',
+              'data-school' => !empty($event->schultyp) ?$event->schultyp :'',
+              'data-title' => !empty($event->summary) ?$event->summary :'',
+              ##ends event data
+              'style' => array(
+                'background-color:' . (!empty($event->color) ? $event->color : 'green') . ';',
+                'height:' . $duration . 'px;'
               )
-            );
-            $form['day'][$h]['container'][$m]['event'][$i]['content'] = array (
-              '#type' => 'markup',
-              '#markup' => '<span class="event-content-hours">' . $titleHours . ' </span><br>
-                                    <span class="event-content-title">' . $title . ' </span><br>
-                                    <span class="event-content-student">' . $titleStudent . ' </span>'
-            );
-          }  //end for events
+            ),
+
+            '#states' => array(
+              'visible' => array(
+                ':input[data-group="' . (!empty($event->calendarid) ?$event->calendarid :null) . '"]' => array('checked' => true),
+              )
+            )
+          );
+          $form['day'][$h]['container'][$m]['event'][$i]['content'] = array (
+            '#type' => 'markup',
+            '#markup' => '<span class="event-content-hours">' . $titleHours . ' </span><br>
+                                  <span class="event-content-title">' . $title . ' </span><br>
+                                  <span class="event-content-student">' . $titleStudent . ' </span>'
+          );
+        }  //end for events
         //----------------------------------------------------
         //----------------------------------------------------
         //----------------------------------------------------
