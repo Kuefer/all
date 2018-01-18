@@ -472,7 +472,7 @@ function calendar_form ($form, &$form_state) {
               . (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description: '');
 
             $titleStudent = (!empty($event->student_name)? ' ' . $event->student_name: '')
-              . (!empty($event->number)? ' ' . $event->number: '');
+              . (!empty($event->number)? ' ' . implode('-',str_split($event->number, 4)): '');
 
             $form['day'][$h]['container'][$m]['event'][$i] = array (
               '#type' => 'container',

@@ -12,24 +12,37 @@
     margin: 10px 0;
 }
 */
-#go-advanced-type{
-
-}
+/*
 #advanced-fields{
   float:left;
   margin-right:30px;
 }
-#mathe-search-form,
+*/
+#wrap-search .submit-save {
+  margin-top: 17px;
+}
+#wrap-search .form-item {
+  float:left;
+  margin-right:20px;
+}
+#wrap-search input#edit-text.form-text {
+  padding:7px;
+}
+  
+  /*earch-result-form*/
+#mathe-search-results-form {
+  float: left;
+  margin: 20px 0;
+  padding: 10px;
+  width: 936px;
+  border: 1px solid lightgray;
+}
+/*
 #mathe-advanced-form,
 #mathe-advanced-results-form,
 #mathe-search-results-form{
   border:1px solid lightgrey;
   padding:10px;
-}
-#mathe-search-form{
-  float:left;
-  width:380px;
-  margin-bottom: 10px!important;
 }
 #mathe-advanced-form{
   float:right;
@@ -42,6 +55,7 @@
   clear:both;
   margin-top:10px;
 }
+*/
 /*-----------------------------------------------------------------*/
 /* search result*/
 
@@ -49,9 +63,4 @@
   padding:10px;
   margin:5px 0 5px 0;
 }
-.search-type{
-  color:dimgrey;
-}
-.search-title{
-  color:darkgreen;
-}
+

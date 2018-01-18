@@ -18,15 +18,6 @@
 .page-profile .grey{
   color:grey;
 }
-
-
-.page-profile #user-info a {
-  color: dodgerblue !important;
-}
-.page-profile #user-info a:hover {
-  color: royalblue !important;
-}
-
 .page-profile #edit-employee{
   float:left;
   clear:both;

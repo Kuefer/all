@@ -102,7 +102,7 @@ function user_info($node, &$form_state){
     . '<p><span class="grey">Birthday:</span> ' . (isset($info->birthday) ? date('Y/m/d', $info->birthday) :'') . '</p><br>';
 
   $markup .= '<p><span class="grey">Phone:</span></p><br>';
-  foreach($phones as $phone) $markup .= '<p>&nbsp;&nbsp;' . implode(' - ',str_split($phone, 4)) . '</p><br>';
+  foreach($phones as $phone) $markup .= '<p>&nbsp;&nbsp;' . implode('-',str_split($phone, 4)) . '</p><br>';
   $markup .= '<p><span class="grey">Email:</span></p><br>';
   foreach($emails as $email) $markup .= '<p>&nbsp;&nbsp;<a href="mailto:' . $email . '">' . $email . '</a></p><br>';
 

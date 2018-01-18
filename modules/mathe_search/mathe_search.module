@@ -27,6 +27,7 @@ function mathe_search_submit($form, &$form_state) {
   return drupal_goto('/search/' . urlencode($form_state['input']['text']));
 }
 function mathe_search_form($form, &$form_state, $url = false) {
+  /*
   $form['field'] = array(
     '#type' => 'fieldset',
     '#title' => t('Search'),
@@ -34,15 +35,20 @@ function mathe_search_form($form, &$form_state, $url = false) {
     '#collapsed' => false,
     '#id' => 'wrap-search',
   );
+  */
+  $form['field'] = array(
+    '#type' => 'container',
+    '#id' => 'wrap-search',
+  );
   $form['field']['text'] = array(
     '#type' => 'textfield',
-    '#size' => 46,
+    '#size' => 56,
     '#value' => !isset($url['advanced']) ? $url : '',
     '#title' => t('Enter your key words'),
   );
   $form['field']['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Go'),
+    '#value' => t('Search'),
     '#attributes' => array('class'=>array('submit-save')),
     '#submit' => array('mathe_search_submit'),
   );
@@ -102,7 +108,8 @@ function mathe_advanced_form($form, &$form_state, $url = false) {
     '#options' => $options,
     '#title' => t('Only of the type(s)'),
     '#id' => 'go-advanced-type',
-    '#default_value' => $default
+    '#default_value' => $default,
+    '#suffix' => '</br>'
   );
 //----------------------------------------------------
   $form['advanced']['submit'] = array(
@@ -110,8 +117,7 @@ function mathe_advanced_form($form, &$form_state, $url = false) {
     '#value' => t('Advanced search'),
     '#attributes' => array('class'=>array('submit-save')),
     '#submit' => array('mathe_advanced_submit'),
-    '#prefix' => '</br></br></br><div style="">',
-    '#suffix' => '</div>'
+    '#prefix' => '</br>'
   );
 
   return $form;
@@ -214,8 +220,6 @@ ATTENDEE;EMAIL=office@admin-nachhilfe.com;CN=Robert Dan:office@admin-nachhi
  lfe.com
 END:VEVENT
 */
-
-
   $filter = array(
     'name' => 'VCALENDAR',
     'is-not-defined' => false,
@@ -321,51 +325,41 @@ END:VEVENT
     'summary' => $filter_summary,
     'description' => $filter_description
   );
-
   foreach($filters as $filter){
+    
     $query_result = _query_events($filter, $principals, $CalDAV);
+    #dpm($query_result);
     if(empty($query_result)) continue;
     foreach($query_result as $data){
       array_push($events,(object) array(
         'title' => (string) $data->VEVENT->SUMMARY,
         'description' => (string) $data->VEVENT->DESCRIPTION,
         'starts' => strtotime((string) $data->VEVENT->DTSTART),
-        'student_firstname' => (string) $data->VEVENT->ATTENDEE['CN'],
-        'student_lastname' => (string) $data->VEVENT->ATTENDEE['EMAIL'],
-        'teacher_firstname' => '',
-        'teacher_lastname' => ''
+        'student_name' => (string) $data->VEVENT->ATTENDEE['CN'],
       ));
     }
   }
-krsort($events);
-#$events = array();
-
+  krsort($events);
+  #$events = array();
   if(!empty($events)){
     foreach($events as $i => $event){
-
       $build['wrap']['event'][$i] = array(
         '#type' => 'markup',
         '#markup' => '<div class="search-result">'
-        . '<a href="/calendar/' . date('Y/m/d', $event->starts) . '">'
-        . '<span class="search-type">Event</span>&nbsp;&nbsp;'
-        . '<span class="search-title">Starts: ' . date('d-F-Y', $event->starts) . ',&nbsp;</span> '
+        . '<a href="/calendar/' . date('Y/m/d', $event->starts) . '"><span class="search-type">Event ' . (!empty($event->title) ? (strlen($event->title) > 50 ? substr($event->title,0,50)."..." : $event->title ) : 'none') . '</span></a>'
+        . '<br>'
+        . '<span class="search-title">' . date('d F Y', $event->starts) . '&nbsp; ' . (!empty($event->student_name)? $event->student_name : '') . '</span> '
         /*
         . '<span class="search-title">Teacher: ' . $event->teacher_firstname  . '&nbsp;' . $event->teacher_lastname . ',&nbsp;</span>'
         */
-        . '<span class="search-title">Title: '
-          . (!empty($event->title)? (strlen($event->title) > 50 ? substr($event->title,0,50)."..." : $event->title ):'none')
-        . ',&nbsp;&nbsp;</span>'
-        . '<span class="search-title">Student: '
-          . (!empty($event->student_firstname)? $event->student_firstname
-          . '&nbsp;' . $event->student_lastname:'none'). '</span>'
-        .'</a></div>'
+        .'</div>'
       );
     }
   }
 
   #employees
   $query = db_query("SELECT
-        ne.firstname, ne.lastname, ne.street, ne.city,
+        ne.uid, ne.firstname, ne.lastname, ne.street, ne.city,
     MATCH
         (ne.firstname, ne.lastname, ne.street, ne.city)
     AGAINST
@@ -385,11 +379,25 @@ krsort($events);
   array(':like' => $land, ':franchisetaker' => $franchisetaker->uid));
   $employees = $query->fetchAll();
   #if (!empty($employees)) $result = array_merge($result, $employees);
-
-
+  
+  if(!empty($employees)){
+    foreach($employees as $i => $employee){
+      $build['wrap']['students'][$i] = array(
+        '#type' => 'markup',
+        '#markup' => '<div class="search-result">'
+        . '<a href="/profile/' . $employee->uid . '"><span class="search-type">Employee</span></a>'
+          . '<br>&nbsp;&nbsp;'
+          . '<span class="search-title">Name: ' . $employee->firstname . ' ' . $employee->lastname . ',&nbsp;</span>'
+          . '<span class="search-title">Address:  ' . $employee->street . ',&nbsp;</span>'
+          . '<span class="search-title">City: ' . $employee->city . '</span>'
+        . '</div>'
+      );
+    }
+  }
+  
   #students
   $query = db_query("SELECT
-        ns.uid, ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city,
+        ns.uid, ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city, np.number,
     MATCH
         (ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city)
     AGAINST
@@ -397,6 +405,7 @@ krsort($events);
     FROM
         nachhilfe_students as ns
         LEFT JOIN nachhilfe_roles as nr ON nr.uid = ns.uid
+        LEFT JOIN nachhilfe_phones as np ON np.uid = ns.uid
     WHERE
         MATCH
             (ns.firstname, ns.lastname, ns.student_firstname, ns.student_lastname, ns.street, ns.city)
@@ -414,16 +423,25 @@ krsort($events);
       $build['wrap']['students'][$i] = array(
         '#type' => 'markup',
         '#markup' => '<div class="search-result">'
-        . '<a href="/profile/' . $student->uid . '">'
-          . '<span class="search-type">Students</span>&nbsp;&nbsp;'
-          . '<span class="search-title">Name: ' . $student->firstname . ' ' . $student->lastname . ',&nbsp;</span>'
-          . '<span class="search-title">Address:  ' . $student->street . ',&nbsp;</span>'
-          . '<span class="search-title">City: ' . $student->city . '</span>'
-        . '</a></div>'
+        . '<a href="/profile/' . $student->uid . '"><span class="search-type">Students</span></a>'
+          . '<br>&nbsp;&nbsp;'
+          . '<span class="search-title">' . $student->firstname . ' ' . $student->lastname . ',&nbsp;</span>'
+          . '<span class="search-title">' . implode('-',str_split($student->number, 4)) . ',&nbsp;</span>'
+          . '<span class="search-title">' . $student->street . ',&nbsp;</span>'
+          . '<span class="search-title">' . $student->city . '</span>'
+        . '</div>'
       );
     }
   }
 
+  if (empty($students) && empty($employees) && empty($events)) {
+    #$land
+      $build['wrap']['no-results'] = array(
+        '#type' => 'markup',
+        '#markup' => '<div class="search-result"><p>No results for <b>' . $land. '</b></p></div>'
+      );
+  }
+  
   return $build;
 
 }
@@ -577,7 +595,7 @@ function mathe_advanced_results_form($form, &$form_state, $string = false) {
 function mathe_search_menu_callback($string = '') {
   if(strpos($string, '=')) parse_str($string, $url);
   else $url = urldecode($string);
-
+  
   $variables['search'] = drupal_get_form('mathe_search_form', $url);
   #$variables['advanced'] = drupal_get_form('mathe_advanced_form', $url);
   if(empty($url['advanced']) && !empty($string)) $variables['result'] = drupal_get_form('mathe_search_results_form', $url);

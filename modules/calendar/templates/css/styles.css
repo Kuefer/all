@@ -432,7 +432,7 @@
   position: relative;
 }
 .calendar-day .event {
-  font-size:80%;
+  font-size:94%;
   padding-top: 5px;
   min-height: 45px;
   max-height: 1300px;
