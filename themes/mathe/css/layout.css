@@ -27,20 +27,8 @@
   src:url(../fonts/pathway_gothic_one.ttf);
 }
 @font-face{
-  font-family:'pontano_sans';
-  src:url(../fonts/pontano_sans.ttf);
-}
-@font-face{
   font-family:'pt_sans_narrow_web';
   src:url(../fonts/pt_sans_narrow_web.ttf);
-}
-@font-face{
-  font-family:'yanone_kaffeesatz';
-  src:url(../fonts/yanone_kaffeesatz.ttf);
-}
-@font-face{
-  font-family:'yantramanav';
-  src:url(../fonts/yantramanav.ttf);
 }
 @font-face{
   font-family:'noto';
@@ -57,10 +45,6 @@
 @font-face{
   font-family:'roboto';
   src:url(../fonts/roboto.ttf);
-}
-@font-face{
-  font-family:'sansita';
-  src:url(../fonts/sansita.ttf);
 }
 @font-face{
   src:url(https://fonts.googleapis.com/css?family=PT+Sans);

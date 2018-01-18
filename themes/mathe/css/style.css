@@ -26,6 +26,10 @@ h3{
 h2, h3 {
   color:#444951;
 }
+h2{
+  font-family:'noto';
+  
+}
 /* end thml */
 
 /* checkbox*/
@@ -293,10 +297,8 @@ header{
   padding: 0px 10px;
 }
 #name a{
-  font-family:'roboto';
   background: url(../images/account-dropdown.png) no-repeat left center;
   padding-left: 12px;
-  font-size:0.9em;
 }
 #name a:hover{}
 .dropdown{

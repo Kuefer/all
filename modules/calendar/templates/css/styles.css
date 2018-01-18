@@ -749,7 +749,11 @@
 }
 #events-block select,
 #events-block input{
-  border-width: 0px !important
+  border-width: 0px;
+}
+#events-block submit-save,
+#events-block submit-delete{
+  border-width: 1px;
 }
 /* end checkbox edit all repeated events */
 /*---------------------------------------------------------------------------*/
