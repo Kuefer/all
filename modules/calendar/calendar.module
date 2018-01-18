@@ -136,6 +136,23 @@ function calendar_session () {
   /* End Groups -------------------------------------------------- */
   /* ------------------------------------------------------------------- */
   /* Events --------------------------------------------------------- */
+  $principals = array();
+  $employees = db_select('users','u');
+  $employees->leftJoin('nachhilfe_employees', 'e', 'e.uid = u.uid');
+  $employees->leftJoin('nachhilfe_roles', 'r', 'r.uid = u.uid');
+  $employees->leftJoin('users_roles', 'ur', 'ur.uid = u.uid');
+  @$employees->condition('r.franchisetaker', $nr->franchisetaker);
+  $employees->condition('ur.rid', array(4,6), 'IN');
+  $employees->addField('u','status','status');
+  $employees->addField('u','mail','mail');
+  $employees = $employees->execute()->fetchAll();
+  #get calendars for user
+  foreach($employees as $employee){
+    $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
+    array_push($principals, $calendars);
+  }
+
+  
   $events = array();
   $filter = array(
     'name' => 'VCALENDAR',
@@ -199,7 +216,7 @@ function calendar_session () {
 
         $teacher_name = db_select('dav_calendarinstances', 'dci');
         $teacher_name->fields('dci', array('displayname'));
-        $teacher_name->condition('dci.id', $calendar['id'][0]);
+        $teacher_name->condition('dci.calendarid', $calendar['id'][0]);
         $teacher_name = $teacher_name->execute()->fetch();
 
         array_push($events[$key], (object) array(
@@ -662,7 +679,7 @@ function all_events_form ($form, &$form_state){
 
         $teacher_name = db_select('dav_calendarinstances', 'dci');
         $teacher_name->fields('dci', array('displayname'));
-        $teacher_name->condition('dci.id', $calendar['id'][0]);
+        $teacher_name->condition('dci.calendarid', $calendar['id'][0]);
         $teacher_name = $teacher_name->execute()->fetch();
 
         array_push($all_events, (object) array(

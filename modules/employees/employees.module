@@ -827,8 +827,8 @@ function employees_substitute_teacher_submit ($form, &$form_state) {
     return drupal_set_message($e->getMessage(), 'error');
   }
   
-  #return drupal_goto('/employees/disable/' . $event['option']);
-  return drupal_goto('/employees/list/');
+  return drupal_goto('/employees/disable/' . $form_state['values']['wrap']['value']['employee-id']);
+  #return drupal_goto('/employees/list/');
   
 }
 function employees_disable_submit_no ($form, &$form_state) {
@@ -1061,6 +1061,10 @@ function employees_disable_form ($form, &$form_state, $employee = null) {
         '#suffix' => '</td></tr>',
       );
     }
+      $switch['wrap']['value']['employee-id'] = array(
+        '#type' => 'value',
+        '#value' => $employee->uid
+      );
     $switch['wrap']['submit'] = array(
       '#type' => 'submit',
       '#value' => t('Save'),
