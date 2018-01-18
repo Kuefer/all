@@ -162,7 +162,7 @@ function mathe_search_results_form($form, &$form_state, $string = false) {
   $employees->condition('ur.rid', array(4,6), 'IN');
   $employees->condition('u.status', 1, '=');
   $employees = $employees->execute()->fetchAll();
-
+  
   #get calendars for user
   foreach($employees as $employee){
     $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
@@ -360,7 +360,7 @@ END:VEVENT
 
   #employees
   $query = db_query("SELECT
-        ne.uid, ne.firstname, ne.lastname, ne.street, ne.city,
+        ne.uid, ne.firstname, ne.lastname, ne.street, ne.city, np.number,
     MATCH
         (ne.firstname, ne.lastname, ne.street, ne.city)
     AGAINST
@@ -368,6 +368,7 @@ END:VEVENT
     FROM
         nachhilfe_employees as ne
         LEFT JOIN nachhilfe_roles as nr ON nr.uid = ne.uid
+        LEFT JOIN nachhilfe_phones as np ON np.uid = ne.uid
     WHERE
         MATCH
             (ne.firstname, ne.lastname, ne.street, ne.city)
@@ -375,19 +376,22 @@ END:VEVENT
             (:like IN BOOLEAN MODE)
         AND
             nr.franchisetaker = :franchisetaker
+        AND
+            np.disabled = :disabled
     ORDER BY
         score DESC;",
-  array(':like' => '+' . $land, ':franchisetaker' => $franchisetaker->uid));
+  array(':like' => $land, ':franchisetaker' => $franchisetaker->uid, ':disabled' => 0));
   $employees = $query->fetchAll();
-  
+
   if(!empty($employees)){
     foreach($employees as $i => $employee){
       $build['wrap']['employee'][$i] = array(
         '#type' => 'markup',
         '#markup' => '<div class="search-result">'
-        . '<a href="/profile/' . $employee->uid . '"><span class="search-type">Employee - ' . $employee->firstname . ' ' . $employee->lastname . '</span></a>'
+        . '<a href="/profile/' . $employee->uid . '"><span class="search-type">' . $employee->firstname . ' ' . $employee->lastname . ' - ' . $employee->city . '</span></a>'
           . '<br>'
           . '<span class="search-title">' . $employee->firstname . ' ' . $employee->lastname . ',&nbsp;</span>'
+          . '<span class="search-title">' . implode('-',str_split($employee->number, 4)) . ',&nbsp;</span>'
           . '<span class="search-title">' . $employee->street . ',&nbsp;</span>'
           . '<span class="search-title">' . $employee->city . '</span>'
         . '</div>'
@@ -413,9 +417,11 @@ END:VEVENT
             (:like IN BOOLEAN MODE)
         AND
             nr.franchisetaker = :franchisetaker
+        AND
+            np.disabled = :disabled
     ORDER BY
         score DESC;",
-  array(':like' => $land, ':franchisetaker' => $franchisetaker->uid));
+  array(':like' => $land, ':franchisetaker' => $franchisetaker->uid, ':disabled' => 0));
   $students = $query->fetchAll();
 
   if(!empty($students)){
@@ -423,7 +429,7 @@ END:VEVENT
       $build['wrap']['students'][$i] = array(
         '#type' => 'markup',
         '#markup' => '<div class="search-result">'
-        . '<a href="/profile/' . $student->uid . '"><span class="search-type">Students - ' . $student->firstname . ' ' . $student->lastname . '</span></a>'
+        . '<a href="/profile/' . $student->uid . '"><span class="search-type">' . $student->firstname . ' ' . $student->lastname . ' - ' . $student->city . '</span></a>'
           . '<br>'
           . '<span class="search-title">' . $student->firstname . ' ' . $student->lastname . ',&nbsp;</span>'
           . '<span class="search-title">' . implode('-',str_split($student->number, 4)) . ',&nbsp;</span>'
@@ -438,7 +444,7 @@ END:VEVENT
     #$land
       $build['wrap']['no-results'] = array(
         '#type' => 'markup',
-        '#markup' => '<div class="search-result"><p>Your search yielded no results for <b>' . $land. '</b></p></div>'
+        '#markup' => '<div class="search-result"><p>Your search yielded no results.</p></div>'
       );
   }
   
