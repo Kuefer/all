@@ -1171,16 +1171,16 @@ function employees_list() {
 
   $header = array(
     #array('data' => t('uid'), 'field' => 'u.uid', 'sort' => 'asc'),
-    array('data' => t('firstname'), 'field' => 'ud.firstname', 'sort' => 'title'),
-    array('data' => t('lastname'), 'field' => 'ud.lastname', 'sort' => 'title'),
+    array('data' => t('Name'), 'field' => 'ud.firstname', 'sort' => 'title'),
+    #array('data' => t('Lastname'), 'field' => 'ud.lastname', 'sort' => 'title'),
     #array('data' => t('street'), 'field' => 'ud.street', 'sort' => 'title'),
-    array('data' => t('city'), 'field' => 'ud.city', 'sort' => 'title'),
-    array('data' => t('birthday'), 'field' => 'ud.birthday', 'sort' => 'asc'),
+    array('data' => t('City'), 'field' => 'ud.city', 'sort' => 'title'),
+    array('data' => t('Birthday'), 'field' => 'ud.birthday', 'sort' => 'asc'),
     #array('data' => t('gender'), 'field' => 'ud.gender', 'sort' => 'title'),
-    array('data' => t('registered'), 'field' => 'u.created', 'sort' => 'asc'),
-    array('data' => t('role'), 'field' => 'r.name', 'sort' => 'title'),
-    array('data' => t('mail'), 'field' => 'u.mail', 'sort' => 'title'),
-    array('data' => t('actions')),
+    array('data' => t('Registered'), 'field' => 'u.created', 'sort' => 'asc'),
+    array('data' => t('Role'), 'field' => 'r.name', 'sort' => 'title'),
+    array('data' => t('E-mail'), 'field' => 'u.mail', 'sort' => 'title'),
+    array('data' => t('Actions')),
   );
 
   $select = db_select('users', 'u')
@@ -1226,13 +1226,13 @@ function employees_list() {
 
   foreach ($entries as $entry) {
     $rows[] = array(
-      'firstname' => $entry->firstname,
-      'lastname' => $entry->lastname,
+      'Name' => $entry->firstname . ' ' . $entry->lastname,
+      #'lastname' => $entry->lastname,
       'city' => ucfirst($entry->city),
       'birthday' => date('Y-m-d', $entry->birthday),
       'created' => date('Y-m-d', $entry->created),
       'role' => $entry->role,
-      'E-mail' => $entry->mail,
+      'E-mail' => '<a href="mailto:' . $entry->mail . '">' . $entry->mail . '</a>',
       'actions' => l(t('Profile'), 'profile/' . $entry->uid)
       . '&nbsp;|&nbsp;'
       . l(t('Edit'), 'employees/create/' . $entry->uid)
