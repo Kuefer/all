@@ -195,7 +195,6 @@ function caldav_form ($form, &$form_state) {
     '#disabled' => true,
     '#size' => 24,
     '#attributes' => array('placeholder' => 'example.com'),
-    '#value' => $_SERVER['REMOTE_HOST'],
     '#prefix' => '<table><tr><td>',
     '#suffix' => '</td>'
   );
