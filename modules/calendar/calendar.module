@@ -481,11 +481,12 @@ function calendar_form ($form, &$form_state) {
           }
 
           $titleHours = date('H:i', $event->start) . ' - ' . date('H:i', $event->end)
-            . (!empty($event->summary)? ' ' . $event->summary: '');
-
-          $title = (!empty($event->class)? 'Klass ' . $event->class: '')
-            . (!empty($event->schultyp)? ' ' . $event->schultyp: '')
+            #. (!empty($event->summary)? ' ' . $event->summary: '');
             . (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description: '');
+
+          $title = (!empty($event->class)? 'K' . $event->class: '')
+            . (!empty($event->schultyp)? substr($event->schultyp, 0, 1): '');
+            #. (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description: '');
 
           $titleStudent = (!empty($event->student_name)? ' ' . $event->student_name: '')
             . (!empty($event->number)? ' ' . implode('-',str_split($event->number, 4)): '');
@@ -528,8 +529,9 @@ function calendar_form ($form, &$form_state) {
           $form['day'][$h]['container'][$m]['event'][$i]['content'] = array (
             '#type' => 'markup',
             '#markup' => '<span class="event-content-hours">' . $titleHours . ' </span><br>
-                                  <span class="event-content-title">' . $title . ' </span><br>
-                                  <span class="event-content-student">' . $titleStudent . ' </span>'
+                                  <span class="event-content-student">' . $titleStudent . ' </span><br>
+                                  <span class="event-content-title">' . $title . ' </span>'
+                                  
           );
         }  //end for events
         //----------------------------------------------------
@@ -754,21 +756,23 @@ function button_event_delete_submit ($form, &$form_state) {
   }
 }
 function button_starts_days_month_callback ($form, &$form_state) {
-    $starts_year = $form['event']['starts']['field']['date']['year']['#value'];
-    $starts_month = $form['event']['starts']['field']['date']['month']['#value'];
-    $day = drupal_map_assoc(range(1,date('t', strtotime($starts_year .'/'. $starts_month . '/20 00:00:00'))));
-    $form['event']['starts']['field']['date']['day']['#options'] = $day;
+    $starts_year = $form['event']['starts-date']['field']['date']['year']['#value'];
+    $starts_month = $form['event']['starts-date']['field']['date']['month']['#value'];
+    $day = drupal_map_assoc(range(1,date('t', strtotime($starts_year .'/'. $starts_month . '/10 00:00:00'))));
+    $form['event']['starts-date']['field']['date']['day']['#options'] = $day;
 
-    $commands[] = ajax_command_replace('#event-starts-date-day', drupal_render($form['event']['starts']['field']['date']['day']));
+    $commands[] = ajax_command_replace('#event-starts-date-day', drupal_render($form['event']['starts-date']['field']['date']['day']));
+    $commands[] = ajax_command_invoke(null, 'initDoc');
     return array('#type' => 'ajax', '#commands' => $commands);
 }
 function button_ends_days_month_callback ($form, &$form_state) {
     $ends_year = $form['event']['ends-date']['field']['date']['year']['#value'];
-    $ends_month = $form['event']['end-dates']['field']['date']['month']['#value'];
+    $ends_month = $form['event']['ends-date']['field']['date']['month']['#value'];
     $day = drupal_map_assoc(range(1,date('t', strtotime($ends_year .'/'. $ends_month . '/10 00:00:00'))));
-    $form['event']['ends']['field']['date-date']['day']['#options'] = $day;
+    $form['event']['ends-date']['field']['date']['day']['#options'] = $day;
 
     $commands[] = ajax_command_replace('#event-ends-date-day', drupal_render($form['event']['ends-date']['field']['date']['day']));
+    $commands[] = ajax_command_invoke(null, 'initDoc');
     return array('#type' => 'ajax', '#commands' => $commands);
 }
 function button_end_repeat_days_month_callback ($form, &$form_state) {
@@ -1015,7 +1019,7 @@ function events_block () {
         '#prefix' => '<tr class="fix-date-select"><td>',
         '#options' => drupal_map_assoc(range(1, 31)),
         '#default_value' => date('j'),
-        '#id' => 'event-starts-date-day'
+        '#id' => 'event-starts-date-day',
     );
     $form['event']['starts-date']['field']['date']['month'] = array(
         '#type' => 'select',

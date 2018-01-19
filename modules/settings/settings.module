@@ -160,32 +160,42 @@ function caldav_form_submit ($form, &$form_state) {
   drupal_set_message($caldav['server'] .':'. $caldav['port'], 'error');
 }
 function caldav_form ($form, &$form_state) {
+  global $user;
   $form['new'] = array (
     '#type' => 'fieldset',
-    '#title' => t('New Calendar account'),
+    '#title' => t('CalDAV account settings'),
     '#collapsible' => true,
     '#collapsed' => false,
     '#prefix' => '<div class="new-caldav">',
     '#suffix' => '</div>',
   );
+  $form['new']['p'] = array(
+    '#title' => 'markup',
+    '#markup' => '<p>You can copy and past the next credentials</p>',
+  );
   $form['new']['user'] = array(
     '#title' => t('User'),
     '#type' => 'textfield',
     '#required' => true,
-    '#attributes' => array('placeholder' => 'name@example.com'),
+    '#disabled' => true,
+    '#attributes' => array('placeholder' => 'admin@example.com'),
+    '#value' => $user->mail,
   );
   $form['new']['password'] = array(
     '#title' => t('Password'),
     '#type' => 'password',
     '#required' => true,
+    '#disabled' => true,
     '#attributes' => array('placeholder' => 'Required'),
   );
   $form['new']['server'] = array(
     '#title' => t('Server'),
     '#type' => 'textfield',
     '#required' => true,
+    '#disabled' => true,
     '#size' => 24,
     '#attributes' => array('placeholder' => 'example.com'),
+    '#value' => $_SERVER['REMOTE_HOST'],
     '#prefix' => '<table><tr><td>',
     '#suffix' => '</td>'
   );
@@ -193,6 +203,7 @@ function caldav_form ($form, &$form_state) {
     '#title' => t('Port'),
     '#type' => 'textfield',
     '#required' => true,
+    '#disabled' => true,
     '#size' => 4,
     '#attributes' => array('placeholder' => '80'),
     '#prefix' => '<td id="caldav-port">',
@@ -201,9 +212,12 @@ function caldav_form ($form, &$form_state) {
   $form['new']['path'] = array(
     '#title' => t('Path'),
     '#type' => 'textfield',
+    '#disabled' => true,
     '#required' => true,
     '#attributes' => array('placeholder' => '/dav/principals/admin@example.org'),
+    '#value' => '/dav/principals/' . $user->mail,
   );
+  /*
   $form['new']['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save'),
@@ -218,6 +232,7 @@ function caldav_form ($form, &$form_state) {
     '#attributes' => array('class' => array('submit-save')),
     '#submit' => array('form_back'),
   );
+  */
   return $form;
 }
 //----------------------------------------------------------------------------
