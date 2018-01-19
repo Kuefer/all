@@ -936,7 +936,7 @@ function employees_disable_form ($form, &$form_state, $employee = null) {
   $employee = $select->execute()->fetchObject();
 
   if($employee->franchisetaker == $employee->uid) {
-    drupal_set_message("You can't disable your own account!", 'error');
+    drupal_set_message("You can't disable this account!", 'error');
     return drupal_goto('/employees');
   }
 #--------------------------------------------------------------------
