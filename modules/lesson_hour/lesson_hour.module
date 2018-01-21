@@ -685,14 +685,9 @@ function remark_submit ($form, &$form_state) {
   $events = fetch_events();
   $event = $events[$eid];
 
-  $query = db_select('users','u');
-  $query->fields('u');
-  $query->condition('u.mail', $event->student_mail);
-  $result = $query->execute()->fetch();
-
   $values = array(
     'teacher' => $user->uid,
-    'student' => $result->uid,
+    'student' => $event->student_id,
     'date' => empty($form_state['input']['date']) ? date() : strtotime($form_state['input']['date'] . ' ' . date('H:I:s')),
     'target' => empty($form_state['input']['target']) ? null : $form_state['input']['target'],
     'would' => empty($form_state['input']['would']) ? null : $form_state['input']['would'],
@@ -856,12 +851,12 @@ function remarks_list ($node, &$form_state) {
   $entries->leftJoin('nachhilfe_hour_remark', 'hr', 'hr.student = u.uid');
   #$query->leftJoin('nachhilfe_roles', 'nr', 'nr.uid = hr.teacher');
   $entries->fields('hr');
-  $entries->condition('u.mail', $event->student_mail, '=');
+  $entries->condition('u.uid', $event->student_id, '=');
   #$query->condition($or_franchiser);
   $entries->orderBy('hr.id', 'DESC');
   $entries->range(0, $form_state['range']);
   $entries = $entries->execute()->fetchAll();
-  
+
   $build['remarks'] = array (
     '#type' => 'fieldset',
     '#title' => t('Remarks'),
@@ -1188,11 +1183,11 @@ function fetch_events () {
   
   foreach($events as $h){
     foreach($h as $event){   
-      if(empty($event->student_name)) continue;
+      if(empty($event->student_id)) continue;
       $result[$event->id] = $event;
     }
   }
-  
+  #event already take place
   foreach($result as $event){
     $query = db_select('nachhilfe_hour_remark', 'hr');
     $query->fields('hr');
@@ -1200,14 +1195,13 @@ function fetch_events () {
     $entries = $query->execute()->fetchAll();
     if(!empty($entries)) unset($result[$event->id]);
   }
-
+  
   $query = db_select('nachhilfe_roles', 'nr');
   $query->fields('nr');
   $query->condition('nr.uid', $user->uid);
-  $entries = $query->execute()->fetch();
-  $entries = (object)$entries;
-
-  if($user->uid !== @$entries->franchisetaker){
+  $entries = $query->execute()->fetchObject();
+  
+  if($user->uid !== $entries->franchisetaker){
     #if is not the frankisetaker
     foreach($result as $event){
       $query = db_select('dav_calendarinstances', 'ci');
