@@ -125,7 +125,7 @@ function schoolbook_form ($form, &$form_state) {
   $student = fetch_event_student($form_state);
   $student->time = !empty($student->time)? $student->time: $event->start ;
   $student->weekday = !empty($student->weekday)? $student->weekday: date('N', $event->start);
-
+dpm($student);
   $form['schoolbook'] = array (
     '#title' => t('Student'),
     '#type' => 'fieldset',
@@ -1170,8 +1170,8 @@ function fetch_event_student ($form_state) {
     LEFT OUTER JOIN  nachhilfe_students as ns ON ns.uid = u.uid
     LEFT OUTER JOIN  nachhilfe_hour_target as ht ON ht.student = u.uid
     WHERE
-        u.mail = :mail',
-    array(':mail' => $event->student_mail)
+        u.uid = :uid',
+    array(':uid' => $event->student_id)
   );
   $student = $result->fetchObject();
   return $student;
