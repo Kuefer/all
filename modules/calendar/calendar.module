@@ -231,6 +231,7 @@ function calendar_session () {
           'summary' => (string) $data->VEVENT->SUMMARY,
           'description' => (string) $data->VEVENT->DESCRIPTION,
           'rrule' => $rrule,
+          'student_id' => (string) $data->VEVENT->ATTENDEE['ID'],
           'student_name' => (string) $data->VEVENT->ATTENDEE['CN'],
           'student_mail' => (string) $data->VEVENT->ATTENDEE['EMAIL']
         ));
@@ -456,7 +457,9 @@ function calendar_form ($form, &$form_state) {
           $_diferenta = strtotime(date('H:i:s', $event->end)) - strtotime(date('H:i:s', $event->start));
           $duration = $_diferenta / 60; // - padding if box-sizing
           $duration = $duration + ($duration / 60) - 6;
-
+          
+dpm($event);
+          
           if(!empty($event->student_mail)){
             $students = db_select('users','n');
             $students->leftJoin('users_roles', 'ur', 'n.uid = ur.uid');
@@ -471,7 +474,7 @@ function calendar_form ($form, &$form_state) {
             $students->condition('nm.mail', $event->student_mail);
             $students->condition('nm.disabled', 0);
             $students = $students->execute()->fetch();
-
+            
             $event->studentid = $students->uid;
             $event->class = $students->class;
             $event->schultyp = $students->schultyp;
@@ -481,13 +484,11 @@ function calendar_form ($form, &$form_state) {
           }
 
           $titleHours = date('H:i', $event->start) . ' - ' . date('H:i', $event->end)
-            #. (!empty($event->summary)? ' ' . $event->summary: '');
             . (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description : 
                (!empty($event->summary)? ' ' . $event->summary: ''));
 
           $title = (!empty($event->class)? 'K' . $event->class: '')
             . (!empty($event->schultyp)? substr($event->schultyp, 0, 1): '');
-            #. (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description: '');
 
           $titleStudent = (!empty($event->student_name)? ' ' . $event->student_name: '')
             . (!empty($event->number)? ' ' . implode('-',str_split($event->number, 4)): '');
@@ -871,7 +872,8 @@ function button_event_save_submit ($form, &$form_state) {
       if($value->student){
         $vevent->VEVENT->add('ATTENDEE', $value->student_mail, array(
           'EMAIL'  => $value->student_mail,
-          'CN' => $value->student_name
+          'CN' => $value->student_name,
+          'ID' => $value->student
         ));
       }
       if($value->repeat_end){
