@@ -79,7 +79,7 @@ function students_create_form_submit ($form, &$form_state) {
       $account = user_load($values->uid);
       $account->uid = $values->uid;
       $account->status = 1;
-      $account->name = $values->firstname . ' ' . $values->lastname;
+      $account->name = $values->student_firstname . ' ' . $values->student_lastname;
       if((!empty($emails))){
         $account->mail = $emails[0]->text;
         $account->init = $emails[0]->text;
@@ -90,7 +90,7 @@ function students_create_form_submit ($form, &$form_state) {
     else {
       $account = new StdClass();
       $account->status = 1;
-      $account->name = $values->firstname . ' ' . $values->lastname;
+      $account->name = $values->student_firstname . ' ' . $values->student_lastname;
       $account->pass = user_hash_password($values->pass);
       if((!empty($emails))){
         $account->mail = $emails[0]->text;
