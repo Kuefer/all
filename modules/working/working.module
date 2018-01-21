@@ -22,17 +22,6 @@ function working_access($op, $node, $account) {
   }
 }
 //----------------------------------------------------
-/*
-function working_theme () {
-  return array(
-    'working' =>  array(
-      'template' => 'page',
-      'path' => drupal_get_path('module', 'working') . '/templates/',
-    )
-  );
-}
-*/
-//----------------------------------------------------
 function hours_delete_submit_yes ($form, &$form_state) {
   $id = $form_state['build_info']['args'][0];
   if(!empty($id)){
@@ -445,68 +434,6 @@ function working_menu_callback ($id = false) {
   $view = drupal_get_form('view_working_hours');
   return array($todo, $add, $view);
 }
-function amsterdam () {
-  dpm('#steak');
-    dpm('#pok');
-  dpm('#pasta');
-    dpm('#sex');
-  dpm('#weed');
-  $e = '€';
-  $tram = 8;
-  $dus = 45;
-  $intors = 45;
-  $hash = 40;
-
-  $banii = array(
-    'dus' => 35,
-    'intors' => 45,
-    'bus_aerop' => 4,
-    'allday' => 8,
-    #'sandwitch' => 7,
-    #'getränk' => 5,
-    'drugs' => 50,
-    'sandwitch' => 10,
-    'getränk' => 15,
-  );
-
-  dpm(array_sum($banii) . $e);
-
-  $adrese = array(
-    'aero -> centru' => array(
-      'bus' => 197,
-      'from' => '(Evert van de Beekstraat 202) Schipholgebouw',
-      'to' => '(Hobbemastraat 19) Rijksmuseum',
-      'ce' => 'aeroport - i amsterdam (centru)'
-    )
-  );
-
-  $time = array(
-    'aero' => array(
-      'bagaje' => 0.45,
-      'drum' => 1,
-    ),
-    'iamsteram' => array(
-      'pic' => 0.45
-    )
-  );
-
-/*
-from: Evert van de Beekstraat 202
-To: Hobbemastraat 19
-View different travel options
-16:58  17:39
-walking a minute
-16:58  Evert van de Beekstraat 202
-16:59  Schipholgebouw
- Bus 197  Connexxion  Destination Leidseplein via Airport
-16:59  Schipholgebouw
-17:37  Rijksmuseum
-walking 2 minutes
-17:37  Rijksmuseum
-17:39  Hobbemastraat 19
-*/
-
-}
 function working_menu () {
   $items = array();
   $items['working'] = array(
@@ -517,14 +444,6 @@ function working_menu () {
     'access callback' => 'user_access',
     'access arguments' => array('view working page'),
     'type' => MENU_NORMAL_ITEM
-  );
-  $items['working/amsterdam'] = array(
-    'title' => 'Amsterdam',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('amsterdam'),
-    'access callback' => 'user_access',
-    'access arguments' => array('view working page'),
-    'type' => MENU_LOCAL_ACTION,
   );
   $items['working/delete'] = array(
     'title' => 'Delete entry',
@@ -537,23 +456,4 @@ function working_menu () {
   return $items;
 }
 
-/*
--No the passed off lesson hours still have the old teacher. So that I can see from whom the student was teached.
--If I will make the teacher disable the system should look if the teacher have still students in the future.
--The the system should show a message in a box:”Bitte alle Schüler des Lehrers einem anderen Lehrer zuordnen.” Translated “Please switch all the students from this teacher first to an other teacher.
--So that it is not possible to make a teacher disable if he has still students.
--And there should be a function if I want to change all students in a day or all future students from a teacher in that day maybe monday to another teacher.
--------
-
-My fist test report:
--If I click in the calender somewhere it should be display as starting time: 00; 15; 30; 45 and not 5; 10; 20; …
--If I will make a new stundent in the area from “Edit Event” and make a new student then If I come back i I need to click again in the calender to come to the “Edit Event”. It should be if I came back to the calender to creat a student I should be again in den Edit Event area and the new student should be filled out in the field new student. Do you understand?
-If I make a new event then there is the title automatically created like this: “NH+ÜS Marie Großmann K7G” K=class 7 G=Gymnasium.
-If you do the changes right me an email so I can continue the test.
-------
-
-How the system knows who is a teacher and who is a franchisetaker?
--Is there not a field where you can click he has the rights from teacher and the rights from franchisetaker. I do not yet understand how the system is working.
-
-*/
 ?>
