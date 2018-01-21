@@ -464,8 +464,8 @@ function calendar_form ($form, &$form_state) {
             $students->leftJoin('nachhilfe_roles', 'nr', 'n.uid = nr.uid');
             $students->leftJoin('nachhilfe_phones', 'np', 'n.uid = np.uid');
             $students->leftJoin('nachhilfe_mails', 'nm', 'nm.uid = n.uid');
-            $students->fields('ns');
-            $students->fields('np');
+            $students->fields('ns', array('uid', 'student_firstname', 'student_lastname', 'class', 'schultyp'));
+            $students->fields('np', array('number'));
             #$students->condition('n.status', 1);
             $students->condition('ur.rid', 7);
             $students->condition('nm.mail', $event->student_mail);
