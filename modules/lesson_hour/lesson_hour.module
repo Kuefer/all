@@ -732,7 +732,7 @@ function remark_form ($node, &$form_state) {
     '#suffix' => '</div>',
   );
   $form['remark']['table'] = array (
-    '#prefix' => '<table>',
+    '#prefix' => '<table width="100%">',
     '#suffix' => '</table>',
   );
   $form['remark']['table']['date'] = array(
@@ -755,7 +755,7 @@ function remark_form ($node, &$form_state) {
     '#suffix' => '</td>',
   );
   $form['remark']['table']['would'] = array(
-    '#title' => t('Would'),
+    '#title' => t('What would be done?'),
     '#type' => 'textfield',
     '#attributes' => array('placeholder' => t('Was wurde gemacht?')),
     '#size' => 16,
