@@ -125,7 +125,7 @@ function schoolbook_form ($form, &$form_state) {
   $student = fetch_event_student($form_state);
   $student->time = !empty($student->time)? $student->time: $event->start ;
   $student->weekday = !empty($student->weekday)? $student->weekday: date('N', $event->start);
-dpm($student);
+
   $form['schoolbook'] = array (
     '#title' => t('Student'),
     '#type' => 'fieldset',
