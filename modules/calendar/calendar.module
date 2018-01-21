@@ -458,23 +458,22 @@ function calendar_form ($form, &$form_state) {
           $duration = $_diferenta / 60; // - padding if box-sizing
           $duration = $duration + ($duration / 60) - 6;
           
-dpm($event);
-          
-          if(!empty($event->student_mail)){
+
+          if(!empty($event->student_id)){
             $students = db_select('users','n');
             $students->leftJoin('users_roles', 'ur', 'n.uid = ur.uid');
             $students->leftJoin('nachhilfe_students', 'ns', 'n.uid = ns.uid');
             $students->leftJoin('nachhilfe_roles', 'nr', 'n.uid = nr.uid');
             $students->leftJoin('nachhilfe_phones', 'np', 'n.uid = np.uid');
-            $students->leftJoin('nachhilfe_mails', 'nm', 'nm.uid = n.uid');
+            #$students->leftJoin('nachhilfe_mails', 'nm', 'nm.uid = n.uid');
             $students->fields('ns', array('uid', 'student_firstname', 'student_lastname', 'class', 'schultyp'));
             $students->fields('np', array('number'));
             #$students->condition('n.status', 1);
             $students->condition('ur.rid', 7);
-            $students->condition('nm.mail', $event->student_mail);
-            $students->condition('nm.disabled', 0);
-            $students = $students->execute()->fetch();
-            
+            $students->condition('n.uid', $event->student_id);
+            #$students->condition('nm.disabled', 0);
+            $students = $students->execute()->fetchObject();
+
             $event->studentid = $students->uid;
             $event->class = $students->class;
             $event->schultyp = $students->schultyp;
