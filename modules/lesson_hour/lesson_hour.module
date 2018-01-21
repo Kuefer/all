@@ -1184,13 +1184,14 @@ function fetch_events () {
   global $user;
   $result = array();
   list($date, $settings, $groups, $events) = calendar_session();
+  
   foreach($events as $h){
-    foreach($h as $event){
-      if(empty($event->student_mail)) continue;
+    foreach($h as $event){   
+      if(empty($event->student_name)) continue;
       $result[$event->id] = $event;
     }
   }
-
+  
   foreach($result as $event){
     $query = db_select('nachhilfe_hour_remark', 'hr');
     $query->fields('hr');
