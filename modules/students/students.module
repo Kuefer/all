@@ -41,8 +41,8 @@ function students_create_form_submit ($form, &$form_state) {
     $phone['field']['text'] = preg_replace('/\D/', '', $phone['field']['text']);
     if (!empty($phone['field']['text'])) array_push($phones, (object)$phone['field']);
   }
-  if (empty($emails)) return form_set_error('email', t('Please enter a valid E-mail addres.'));
-  if (empty($phones)) return form_set_error('email', t('Please enter a valid phone addres.'));
+  #if (empty($emails)) return form_set_error('email', t('Please enter a valid E-mail addres.'));
+  #if (empty($phones)) return form_set_error('email', t('Please enter a valid phone addres.'));
   if (empty($values->student_firstname)) return form_set_error('students', t('Student first name is required.'));
   if (empty($values->student_lastname)) return form_set_error('students', t('Student last name is required.'));
   if (empty($values->birthday)) return form_set_error('students', t('Student birthday is required.'));
@@ -104,6 +104,7 @@ function students_create_form_submit ($form, &$form_state) {
     if(isset($e->errorInfo[2])) return drupal_set_message($e->errorInfo[2], 'error');
     else return drupal_set_message($e->getMessage(), 'error');
   }
+
 //------------------------------
   #edit student
   try {
@@ -471,7 +472,7 @@ function students_create_form ($form, &$form_state, $student = null) {
       "#empty_option"=>t('None'),
       '#options' =>  drupal_map_assoc(range(1,12)),
       '#default_value' => isset($details->class) ? $details->class: 7,
-      '#required' => true,
+      #'#required' => true,
       #'#prefix' => '<td>',
       #'#suffix' => '</td>',
   );
@@ -561,7 +562,8 @@ function students_create_form ($form, &$form_state, $student = null) {
     '#suffix' => '</tr>',
   );
   $form['students']['phone']['header']['title'] = array(
-    '#markup' => '<th><label>Phone <span class="form-required" title="This field is required.">*</span></label></th>',
+    #'#markup' => '<th><label>Phone <span class="form-required" title="This field is required.">*</span></label></th>',
+    '#markup' => '<th><label>Phone</label></th>',
   );
   foreach ($num_phones as $i) {
     $select_value = count($phones) > $i ? $phones[$i]->type : 0;
@@ -585,7 +587,6 @@ function students_create_form ($form, &$form_state, $student = null) {
       '#maxlength' => 47,
       '#attributes' => array('placeholder' => 'Phone'),
       '#default_value' => $text_value,
-      #'#value' => '09090807807',
     );
 
     if ($i > 0) {
@@ -605,7 +606,7 @@ function students_create_form ($form, &$form_state, $student = null) {
     }
   } //end foreach
 
-  $form['students']['phone'][0]['field']['text']['#required'] = true;
+  #$form['students']['phone'][0]['field']['text']['#required'] = true;
 
   $form['students']['phone']['button'] = array(
       '#prefix' => '<tr>',
