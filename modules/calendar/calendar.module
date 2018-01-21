@@ -920,6 +920,7 @@ function button_event_save_submit ($form, &$form_state) {
       $vevent->VEVENT->ATTENDEE = $value->student_mail;
       $vevent->VEVENT->ATTENDEE['EMAIL'] = $value->student_mail;
       $vevent->VEVENT->ATTENDEE['CN'] = $value->student_name;
+      $vevent->VEVENT->ATTENDEE['ID'] = $value->student_id;
     } else $vevent->VEVENT->remove('ATTENDEE');
 
     #is a repeted event, with an end date
