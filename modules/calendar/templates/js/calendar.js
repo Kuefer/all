@@ -11,7 +11,7 @@
   $.fn.fixEventsWidth = function () {
     //var siblings = 0;
     $('.event').each(function () {
-      var value =  100 / ($(this).siblings(':visible').length + 1);
+      var value =  100 / ($(this).siblings(':visible').length + 1) - 1;
       $(this).css('width', (value) + '%');
     });
   };
@@ -381,7 +381,8 @@
 //----------------
     $('.event').draggable({
       //axis: 'y',
-      containment: '.calendar-day',
+      //containment: '.calendar-day',
+      //containment: 'body',
       cursorAt: { top: 1 },
       snap: '.selectable',
       scroll: true,
