@@ -194,7 +194,7 @@
       $('#event-title').attr('placeholder', 'None').val('');
     }
 
-    $('#event-nush').val(event.nush);
+    $('#event-nhus').val(event.nhus);
     $('#event-starts-date-year').val(startst[0]);
     $('#event-ends-date-year').val(endst[0]);
     $('#event-starts-date-month').val(parseInt(startst[1], 10));
@@ -267,7 +267,7 @@
     $(document).fixZIndex();
 
     $('#event-title').attr('placeholder', 'None').val(data.title);
-    $('#event-nush').val(data.nhus);
+    $('#event-nhus').val(data.nhus);
     $('#event-starts-date-year').val(data.startYear);
     $('#event-ends-date-year').val(data.endsYear);
     $('#event-starts-date-month').val(data.startMonth);
