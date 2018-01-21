@@ -29,7 +29,6 @@
   width:938px;
 }
 #remarks-list .checked{
-  background-image:url(../img/checked.png);
   background-repeat:no-repeat;
   background-position:center center;
   background-size:20px 20px;

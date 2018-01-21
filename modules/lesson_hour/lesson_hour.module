@@ -897,10 +897,10 @@ function remarks_list ($node, &$form_state) {
       'date' => date('d/m/Y', $entry->date),
       'target' => $entry->target,
       'would' => $entry->would,
-      'fsb' => (empty($entry->fsb) ? '<p></p>' : '<p class="checked"></p>'),
-      'hw' => (empty($entry->hw) ? '<p></p>' : '<p class="checked"></p>'),
-      'tf' => (empty($entry->tf) ? '<p></p>' : '<p class="checked"></p>'),
-      'test' => (empty($entry->test) ? '<p></p>' : '<p class="checked"></p>'),
+      'fsb' => (empty($entry->fsb) ? '<p></p>' : '<p class="checked">X</p>'),
+      'hw' => (empty($entry->hw) ? '<p></p>' : '<p class="checked">X</p>'),
+      'tf' => (empty($entry->tf) ? '<p></p>' : '<p class="checked">X</p>'),
+      'test' => (empty($entry->test) ? '<p></p>' : '<p class="checked">X</p>'),
       'tasks' => $entry->tasks,
       'remark' => $entry->remark
     );
