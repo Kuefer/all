@@ -482,7 +482,8 @@ function calendar_form ($form, &$form_state) {
 
           $titleHours = date('H:i', $event->start) . ' - ' . date('H:i', $event->end)
             #. (!empty($event->summary)? ' ' . $event->summary: '');
-            . (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description: '');
+            . (!empty($event->description) && $event->description !== 'None' ? ' ' . $event->description : 
+               (!empty($event->summary)? ' ' . $event->summary: ''));
 
           $title = (!empty($event->class)? 'K' . $event->class: '')
             . (!empty($event->schultyp)? substr($event->schultyp, 0, 1): '');

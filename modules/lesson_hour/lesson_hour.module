@@ -818,10 +818,18 @@ function remark_form ($node, &$form_state) {
   $form['remark']['table']['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Sparen'),
-    '#prefix' => '<tr><td><br/>',
-    '#suffix' => '</td></tr>',
+    '#prefix' => '<tr><td colspan="3"><br/>',
+    '#suffix' => '</td>',
     '#attributes' => array('class' => array('submit-save')),
     '#submit' => array('remark_submit'),
+  );
+  $form['remark']['table']['footer'] = array(
+    '#type' => 'markup',
+    '#markup' => '<div><p>FSB = Formelsammlungsblatt; </p>' .
+    '<p>HW = Schüler kann handwerklich die Regel anwenden; </p>' .
+    '<p>TF = Schüler beherrscht die Regel auch in Textaufgaben/ Anwendungsaufgaben </p></div>',
+    '#prefix' => '<td colspan="6"><br/>',
+    '#suffix' => '</td></tr>',
   );
   return $form;
 }
