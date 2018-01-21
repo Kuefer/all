@@ -825,7 +825,7 @@ function remark_form ($node, &$form_state) {
   );
   $form['remark']['table']['footer'] = array(
     '#type' => 'markup',
-    '#markup' => '<div><p>FSB = Formelsammlungsblatt; </p>' .
+    '#markup' => '<div style="color:grey;"><p>FSB = Formelsammlungsblatt; </p>' .
     '<p>HW = Schüler kann handwerklich die Regel anwenden; </p>' .
     '<p>TF = Schüler beherrscht die Regel auch in Textaufgaben/ Anwendungsaufgaben </p></div>',
     '#prefix' => '<td colspan="6"><br/>',
