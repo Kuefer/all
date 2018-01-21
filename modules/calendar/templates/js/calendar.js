@@ -382,7 +382,6 @@
     $('.event').draggable({
       //axis: 'y',
       //containment: '.calendar-day',
-      //containment: 'body',
       cursorAt: { top: 1 },
       snap: '.selectable',
       scroll: true,
