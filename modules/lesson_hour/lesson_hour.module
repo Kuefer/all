@@ -861,7 +861,7 @@ function remarks_list ($node, &$form_state) {
   $entries->orderBy('hr.id', 'DESC');
   $entries->range(0, $form_state['range']);
   $entries = $entries->execute()->fetchAll();
-
+  
   $build['remarks'] = array (
     '#type' => 'fieldset',
     '#title' => t('Remarks'),
@@ -897,6 +897,7 @@ function remarks_list ($node, &$form_state) {
   );
 
   foreach($entries as $entry) {
+    if($entry->id == null) continue;
     $rows[] = array(
       'date' => date('d/m/Y', $entry->date),
       'target' => $entry->target,
