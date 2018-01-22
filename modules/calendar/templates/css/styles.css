@@ -407,6 +407,7 @@
   float:none;
   height:60px;
   max-width:670px;
+  width:100%;
 }
 .calendar-day .table-row .table-cell .selectable {
   height:15px;
