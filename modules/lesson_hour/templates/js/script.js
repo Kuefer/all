@@ -10,10 +10,13 @@
       jQuery('#remark-date').mask("9999/99/99");
       jQuery('#lesson-mark').mask("9.99");
       jQuery('#lesson-points').mask("9.99");
-
-        jQuery('#new-lesson').bind('click', function() {
-          jQuery('#submit-lesson').fadeToggle();
-        });
+      jQuery('#new-lesson').bind('click', function() {
+        jQuery('#submit-lesson').fadeToggle();
+      });
+      jQuery('#lesson-mark-date').datepicker();
+      jQuery('#remark-date').datepicker();
+      
 	});
+  
 //-------------------------
 }(jQuery, Drupal));
