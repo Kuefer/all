@@ -118,19 +118,25 @@
   };
   $.fn.initDoc = function () {
 //----------------
+    /*
+    $('#block-calendar-events').dialog({
+      autoOpen: true,
+      height: 400,
+      width: 350,
+      modal: true
+    });
+    */
+//----------------
     $('#event-starts-date-year, #event-starts-date-month, #event-starts-date-day, #event-starts-hour, event-ends-date-year, #event-ends-date-month, #event-ends-date-day, #event-ends-hour, #event-ends-minute').bind('change', function () {
       var starts = new Date($('#event-starts-date-year').val(), $('#event-starts-date-month').val(), $('#event-starts-date-day').val(), $('#event-starts-hour').val(), $('#event-starts-minute').val(), '00'),
       ends = new Date($('#event-ends-date-year').val(), $('#event-ends-date-month').val(), $('#event-ends-date-day').val(), $('#event-ends-hour').val(), $('#event-ends-minute').val(), '00'),
       time = ends.getTime() - starts.getTime();
-      
-      
       if(time < 0){
         $('#event-ends-date-day').val($('#event-starts-date-day').val());
         $('#event-ends-date-month').val($('#event-starts-date-month').val());
         $('#event-ends-date-year').val($('#event-starts-date-year').val());
         $('#event-ends-hour').val($('#event-starts-hour').val());
         $('#event-ends-minute').val($('#event-starts-minute').val());
-      
         //alert('Start time must be biger than end time');
       }
     });

@@ -370,11 +370,10 @@
 }
 .calendar-all-day,
 .calendar-day {
-  overflow: hidden;
-  text-overflow: ellipsis;
   background-color: transparent;
   border: 0px solid #d3d3d3;
   border-bottom: none;
+  max-width: 730px !important;
 }
 .calendar-all-day .all-day,
 .calendar-all-day .all-day .table-head,
@@ -405,9 +404,9 @@
 }
 .calendar-all-day .table-row .table-cell,
 .calendar-day .table-row .table-cell {
-    float: none;
-    height: 60px;
-    width: 100%;
+  float:none;
+  height:60px;
+  max-width:670px;
 }
 .calendar-day .table-row .table-cell .selectable {
   height:15px;
@@ -716,6 +715,9 @@
 }
 .border-top {
   border-top: 1px solid lightgrey;
+}
+#block-system-main {
+  overflow:hidden;
 }
 /* end stuff */
 /*---------------------------------------------------------------------------*/
