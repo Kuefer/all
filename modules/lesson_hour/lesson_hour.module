@@ -1201,7 +1201,7 @@ function fetch_events () {
   $query->condition('nr.uid', $user->uid);
   $entries = $query->execute()->fetchObject();
   
-  if($user->uid !== $entries->franchisetaker){
+  if($user->uid !== @$entries->franchisetaker){
     #if is not the frankisetaker
     foreach($result as $event){
       $query = db_select('dav_calendarinstances', 'ci');
