@@ -623,6 +623,9 @@ fieldset.collapsible .fieldset-legend .summary{
   overflow: scroll !important;
   max-height: 400px !important;
 }
+.tabs.primary li a {
+  color: #000 !important;
+}
 /* end general */
 
 /* tooltip */
