@@ -28,6 +28,7 @@
   };
 //----------------
   $.fn.newEvent = function () {
+    console.log(Drupal.settings.calendar.duration);
     var data = $(this).data(),
       d = new Date(),
       tag = $('<div></div>'),
@@ -241,7 +242,7 @@
       sm = dataParent.startminute.substring(1),
       es = data.starts_date.split('-'),
       sd = new Date(es[0], es[1], es[2], sh, sm),
-      ed = new Date(sd.getTime() + (Math.round((height + 15 / 2) / 15) * 15) * 60000);
+      ed = new Date(sd.getTime() + (Math.round((height / 2) / 15) * 15) * 60000);
     $(event).addClass('focused');
     //data.starts_date = sd.getFullYear()+'-'+('0' + sd.getMonth()).slice(-2)+'-'+('0' + sd.getDate()).slice(-2);
     data.starts_time = ('0' + sd.getHours()).slice(-2) + ':' + ('0' + sd.getMinutes()).slice(-2);
@@ -373,7 +374,7 @@
     $('.event').resizable({
       containment: '.calendar-day',
       handles: 's',
-      minHeight: 45,
+      minHeight: 13,
       maxHeight: 1440,
       resize: function (event, ui) {
         $('.event').removeClass('focused');

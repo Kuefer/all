@@ -433,8 +433,8 @@
 }
 .calendar-day .event {
   font-size:90%;
-  padding-top: 5px;
-  min-height: 45px;
+  padding-top: 1px;
+  min-height: 15px;
   max-height: 1300px;
   background-color: yellowgreen;
   float: left;
