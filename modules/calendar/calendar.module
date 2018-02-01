@@ -761,22 +761,22 @@ function button_event_delete_submit ($form, &$form_state) {
   }
 }
 function button_starts_days_month_callback ($form, &$form_state) {
-    $starts_year = $form['event']['starts-date']['field']['date']['year']['#value'];
-    $starts_month = $form['event']['starts-date']['field']['date']['month']['#value'];
+    $starts_year = $form['event']['starts']['field']['date']['year']['#value'];
+    $starts_month = $form['event']['starts']['field']['date']['month']['#value'];
     $day = drupal_map_assoc(range(1,date('t', strtotime($starts_year .'/'. $starts_month . '/10 00:00:00'))));
-    $form['event']['starts-date']['field']['date']['day']['#options'] = $day;
+    $form['event']['starts']['field']['date']['day']['#options'] = $day;
 
-    $commands[] = ajax_command_replace('#event-starts-date-day', drupal_render($form['event']['starts-date']['field']['date']['day']));
+    $commands[] = ajax_command_replace('#event-starts-date-day', drupal_render($form['event']['starts']['field']['date']['day']));
     $commands[] = ajax_command_invoke(null, 'initDoc');
     return array('#type' => 'ajax', '#commands' => $commands);
 }
 function button_ends_days_month_callback ($form, &$form_state) {
-    $ends_year = $form['event']['ends-date']['field']['date']['year']['#value'];
-    $ends_month = $form['event']['ends-date']['field']['date']['month']['#value'];
+    $ends_year = $form['event']['ends']['field']['date']['year']['#value'];
+    $ends_month = $form['event']['ends']['field']['date']['month']['#value'];
     $day = drupal_map_assoc(range(1,date('t', strtotime($ends_year .'/'. $ends_month . '/10 00:00:00'))));
-    $form['event']['ends-date']['field']['date']['day']['#options'] = $day;
+    $form['event']['ends']['field']['date']['day']['#options'] = $day;
 
-    $commands[] = ajax_command_replace('#event-ends-date-day', drupal_render($form['event']['ends-date']['field']['date']['day']));
+    $commands[] = ajax_command_replace('#event-ends-date-day', drupal_render($form['event']['ends']['field']['date']['day']));
     $commands[] = ajax_command_invoke(null, 'initDoc');
     return array('#type' => 'ajax', '#commands' => $commands);
 }
