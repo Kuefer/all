@@ -479,6 +479,6 @@
     $(this).initEvents();
     $(this).initGroups();
     
-    $('#event-starts-picker').datetimepicker();
+    // $('#event-starts-picker').datetimepicker();
   });
 }(jQuery, Drupal));

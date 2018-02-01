@@ -47,9 +47,7 @@ input:disabled{
   color:#858585!important;
 }
 select{
-   margin-top:2px;
    border:1px solid lightgray;
-   font-size: 14px;
    height: 33px;
 
   font-family:inherit;
