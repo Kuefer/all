@@ -202,6 +202,7 @@
   background-image: none;
   background-color: transparent;
   border: none;
+  color: dodgerblue;
 }
 #event-delete {
     float:right;
@@ -654,6 +655,7 @@
   /*width: 146px;*/
   text-overflow: ellipsis;
   overflow: hidden;
+  margin-left:1px;
 }
 .groups-block .group-server {
   font-size:0.7em;
@@ -684,7 +686,7 @@
   overflow:visible;
   padding-left:20px;
   padding-top:5px;
-  margin: 3px;
+  margin:3px;
 }
 .groups-block .form-type-checkbox label:after{
   -ms-filter:"progid:DXImageTransform.Microsoft.Alpha(Opacity=0)";
@@ -719,6 +721,11 @@
 }
 #block-system-main {
   overflow:hidden;
+}
+select#event-nhus.form-select,
+select#event-repeat.form-select,
+select#event-group-select.form-select {
+  width: 256px;
 }
 /* end stuff */
 /*---------------------------------------------------------------------------*/

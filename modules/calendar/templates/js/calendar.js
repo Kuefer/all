@@ -479,6 +479,8 @@
     $(this).initEvents();
     $(this).initGroups();
     
-    // $('#event-starts-picker').datetimepicker();
+    $('#event-starts-date').datepicker();
+    $('#event-ends-date').datepicker();
+    $('#event-end-repeat-date').datepicker();
   });
 }(jQuery, Drupal));
