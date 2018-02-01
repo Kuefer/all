@@ -806,16 +806,12 @@ function button_event_save_submit ($form, &$form_state) {
   $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
 
   $starts = strtotime(
-    $form_values['starts']['field']['date']['year'] . '-' .
-    $form_values['starts']['field']['date']['month'] . '-' .
-    $form_values['starts']['field']['date']['day'] . ' ' .
+    $form_values['starts']['field']['date'] . ' ' .
     $form_values['starts']['field']['time']['hour'] . ':' .
     $form_values['starts']['field']['time']['minute'] . ':00'
   );
   $ends = strtotime(
-    $form_values['ends']['field']['date']['year'] . '-' .
-    $form_values['ends']['field']['date']['month'] . '-' .
-    $form_values['ends']['field']['date']['day'] . ' ' .
+    $form_values['ends']['field']['date'] . ' ' .
     $form_values['ends']['field']['time']['hour'] . ':' .
     $form_values['ends']['field']['time']['minute'] . ':00'
   );
@@ -839,20 +835,12 @@ function button_event_save_submit ($form, &$form_state) {
     $value['student_mail'] = $student->mail;
     $value['student_name'] = $student->student_firstname . ' ' . $student->student_lastname;
   } else $value['student'] = false;
-
-
-
   if ((int)$form_values['repeat']['row']['select'] !== 0) {
     $value['ends'] = strtotime(date('Y-m-d', $starts) . ' ' . date('H:i', $ends));
     $value['repeat_end'] = $form_values['end-repeat']['row']['select'];
     if ((int)$form_values['end-repeat']['row']['select'] !== 0) {
       $value['repeat_end_date'] = strtotime(
         $form_values['end-repeat']['row']['date']
-        /*
-        $form_values['end-repeat']['row']['date']['year'] . '-' .
-        $form_values['end-repeat']['row']['date']['month'] . '-' .
-        $form_values['end-repeat']['row']['date']['day']
-        */
       );
       if ($value['repeat_end_date'] < strtotime(date('Y-m-d'))) $value['repeat_end_date'] = $value['ends'];
     }
@@ -1103,7 +1091,7 @@ function events_block () {
         '#suffix' => '</td></tr>',
         '#states' => array(
             'invisible' => array(
-                'select[name="event[repeat][row][select]"]' => array('value' => '0'),
+                'select[name="event[repeat][row][select]"]' => array('value' => '1'),
             )
         ),
     );
@@ -1118,7 +1106,7 @@ function events_block () {
         #'#ajax' => array('callback' => 'validate_ends_date_callback')
         '#states' => array(
             'invisible' => array(
-                'select[name="event[end-repeat][row][select]"]' => array('value' => '0'),
+                'select[name="event[end-repeat][row][select]"]' => array('value' => '1'),
             )
         ),
     );

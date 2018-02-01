@@ -53,12 +53,8 @@
     $('#event-id').val(0);
     $('#event-student-id').val(0);
     $('#event-title').attr('placeholder', 'None').val('');
-    $('#event-starts-date-year').val(date[0]);
-    $('#event-ends-date-year').val(date[0]);
-    $('#event-starts-date-month').val(date[1]);
-    $('#event-ends-date-month').val(date[1]);
-    $('#event-starts-date-day').val(date[2]);
-    $('#event-ends-date-day').val(date[2]);
+    $('#event-starts-date').val(('0' + date[2]).slice(-2) +'/'+ ('0' + date[1]).slice(-2) +'/'+ date[0]);
+    $('#event-ends-date').val(('0' + date[2]).slice(-2) +'/'+ ('0' + date[1]).slice(-2) +'/'+ date[0]);
     $('#event-starts-hour').val(starthour);
     $('#event-starts-minute').val(startminute);
     $('#event-ends-hour').val(endhour);
@@ -69,9 +65,9 @@
     $('#event-group-select').val(group);
     //$('.page-right').show();
     $('#block-calendar-events').show().siblings().hide();
-    $('#event-end-repeat-date-year').val(d.getFullYear());
-    $('#event-end-repeat-date-month').val(parseInt(d.getMonth() + 1, 10));
-    $('#event-end-repeat-date-day').val(parseInt(d.getDate(), 10));
+    $('#event-end-repeat-date').val(parseInt(d.getDate(), 10) +'/'+ parseInt(d.getMonth() + 1, 10) +'/'+ d.getFullYear());
+    //$('#event-end-repeat-date-month').val();
+    //$('#event-end-repeat-date-day').val();
 
     $('.form-item-event-student-field-name').show();
     $('#event-student-tag').hide();
@@ -126,20 +122,6 @@
       modal: true
     });
     */
-//----------------
-    $('#event-starts-date-year, #event-starts-date-month, #event-starts-date-day, #event-starts-hour, event-ends-date-year, #event-ends-date-month, #event-ends-date-day, #event-ends-hour, #event-ends-minute').bind('change', function () {
-      var starts = new Date($('#event-starts-date-year').val(), $('#event-starts-date-month').val(), $('#event-starts-date-day').val(), $('#event-starts-hour').val(), $('#event-starts-minute').val(), '00'),
-      ends = new Date($('#event-ends-date-year').val(), $('#event-ends-date-month').val(), $('#event-ends-date-day').val(), $('#event-ends-hour').val(), $('#event-ends-minute').val(), '00'),
-      time = ends.getTime() - starts.getTime();
-      if(time < 0){
-        $('#event-ends-date-day').val($('#event-starts-date-day').val());
-        $('#event-ends-date-month').val($('#event-starts-date-month').val());
-        $('#event-ends-date-year').val($('#event-starts-date-year').val());
-        $('#event-ends-hour').val($('#event-starts-hour').val());
-        $('#event-ends-minute').val($('#event-starts-minute').val());
-        //alert('Start time must be biger than end time');
-      }
-    });
 //----------------
     $('input[name="students[others][birthday]"]').mask("99-99-9999");
 //----------------
@@ -201,12 +183,10 @@
     }
 
     $('#event-nhus').val(event.nhus);
-    $('#event-starts-date-year').val(startst[0]);
-    $('#event-ends-date-year').val(endst[0]);
-    $('#event-starts-date-month').val(parseInt(startst[1], 10));
-    $('#event-ends-date-month').val(parseInt(endst[1], 10));
-    $('#event-starts-date-day').val(parseInt(startst[2], 10));
-    $('#event-ends-date-day').val(parseInt(endst[2], 10));
+    
+    $('#event-starts-date').val(('0' + startst[2]).slice(-2) +'/'+ ('0' + startst[1]).slice(-2) +'/'+ endst[0]);
+    $('#event-ends-date').val(('0' + endst[2]).slice(-2) +'/'+ ('0' + endst[1]).slice(-2) +'/'+ endst[0]);
+    
     $('#event-starts-hour').val(startsh[0]);
     $('#event-starts-minute').val(startsh[1]);
     $('#event-ends-hour').val(endsh[0]);
@@ -214,9 +194,9 @@
     $('#event-repeat').val(event.repeat_event).change();
     $('#event-end-repeat').val(event.repeat_end).change();
     if (repeat_date !== null) {
-      $('#event-end-repeat-date-year').val(repeat_date[0]);
-      $('#event-end-repeat-date-month').val(parseInt(repeat_date[1], 10));
-      $('#event-end-repeat-date-day').val(parseInt(repeat_date[2], 10));
+      $('#event-end-repeat-date').val(parseInt(repeat_date[2], 10) +'/'+ parseInt(repeat_date[1], 10) +'/'+ repeat_date[0]);
+      //$('#event-end-repeat-date-month').val();
+      //$('#event-end-repeat-date-day').val();
     }
     $('#event-students').val('');
     if (event.student) {
@@ -274,13 +254,9 @@
 
     $('#event-title').attr('placeholder', 'None').val(data.title);
     $('#event-nhus').val(data.nhus);
-    $('#event-starts-date-year').val(data.startYear);
-    $('#event-ends-date-year').val(data.endsYear);
-    $('#event-starts-date-month').val(data.startMonth);
-    $('#event-ends-date-month').val(data.endsMonth);
-    $('#event-starts-date-day').val(data.startDay);
-    $('#event-ends-date-day').val(data.endsDay);
-
+    $('#event-starts-date').val(('0' + data.startDay).slice(-2) + ' ' + ('0' + data.startMonth).slice(-2) + ' ' + data.startYear);
+    $('#event-ends-date').val(('0' + data.endsDay).slice(-2) + ' ' + ('0' + data.endsMonth).slice(-2) + ' ' + data.endsYear);
+    
     $('#event-starts-hour').val(data.startHour);
     $('#event-starts-minute').val(data.startMin);
     $('#event-ends-hour').val(data.endsHour);
@@ -289,9 +265,9 @@
     $('#event-repeat').val(data.repeat).change();
     $('#event-end-repeat').val(data.endRepeat).change();
 
-    $('#event-end-repeat-date-year').val(data.endRepeatDateYear);
-    $('#event-end-repeat-date-month').val(data.endRepeatDateMonth);
-    $('#event-end-repeat-date-day').val(data.endRepeatDateDay);
+    $('#event-end-repeat-date').val(data.endRepeatDateDay +'/'+ data.endRepeatDateMonth +'/'+ data.endRepeatDateYear);
+    //$('#event-end-repeat-date-month').val(data.endRepeatDateMonth);
+    //$('#event-end-repeat-date-day').val(data.endRepeatDateDay);
 
     $('#event-students').attr('placeholder', 'None').val('');
     $('.form-item-event-student-field-name').hide();
@@ -307,15 +283,13 @@
   };
 //----------------
   $.fn.setDomEvent = function (event) {
-    var year = $('#event-starts-date-year').val(),
-      month = $('#event-starts-date-month').val(),
-      day = $('#event-starts-date-day').val(),
+    var date = $('#event-starts-date').val().split('/'),
       starts_hour = $('#event-starts-hour').val(),
       starts_min = $('#event-starts-minute').val(),
       ends_hour = $('#event-ends-hour').val(),
       ends_min = $('#event-ends-minute').val(),
-      starts = new Date(year, month, day, starts_hour, starts_min, '00'),
-      ends = new Date(year, month, day, ends_hour, ends_min, '00'),
+      starts = new Date(date[2], date[1], date[0], starts_hour, starts_min, '00'),
+      ends = new Date(date[2], date[1], date[0], ends_hour, ends_min, '00'),
       height = ends.getTime() - starts.getTime(),
       focused = $('.focused'),
       title_hours = ('0' + starts.getHours()).slice(-2) + ':' + ('0' + starts.getMinutes()).slice(-2) + ' - ' + ('0' + ends.getHours()).slice(-2) + ':' + ('0' + ends.getMinutes()).slice(-2),
@@ -324,6 +298,23 @@
     $('.focused').children('.event-content-hours').text(title_hours);
     focused.detach();
     $(selectable).prepend(focused);
+  };
+//----------------
+  $.fn.validateDate = function () {
+    var startDate = $('#event-starts-date').val().split('/'),
+        startHour = $('#event-starts-hour').val(),
+        startMin = $('#event-starts-minute').val(),
+        endDate = $('#event-ends-date').val().split('/'),
+        endHour = $('#event-ends-hour').val(),
+        endMin = $('#event-ends-minute').val(),
+        starts = new Date(startDate[2], startDate[1], startDate[0], startHour, startMin, '00'),
+        ends = new Date(endDate[2], endDate[1], endDate[0], endHour, endMin, '00'),
+        time = ends.getTime() - starts.getTime();
+    if (isNaN(time) || time > 0) return true;
+    alert('End date and time must have a bigger value.');
+    $('#event-ends-date').val($('#event-starts-date').val());
+    $('#event-ends-hour').val($('#event-starts-hour').val());
+    $('#event-ends-minute').val(parseInt($('#event-starts-minute').val()) + 15);
   };
 //----------------
   $.fn.initEvents = function () {
@@ -479,8 +470,34 @@
     $(this).initEvents();
     $(this).initGroups();
     
-    $('#event-starts-date').datepicker();
-    $('#event-ends-date').datepicker();
-    $('#event-end-repeat-date').datepicker();
+    $('#event-starts-date, #event-ends-date').datepicker({
+      onSelect: function(date) {
+        $(this).validateDate();
+      } 
+    });
+
+    $('#event-end-repeat-date').datepicker({
+      onSelect: function(date) {
+        var startDate = $('#event-starts-date').val().split('/'),
+            startHour = $('#event-starts-hour').val(),
+            startMin = $('#event-starts-minute').val(),
+            repeatDate = date.split('/'),
+            starts = new Date(startDate[2], startDate[1], startDate[0], startHour, startMin, '00'),
+            repeat = new Date(repeatDate[2], repeatDate[1], repeatDate[0], '23', '55', '00'),
+            time = repeat.getTime() - starts.getTime();
+        if (isNaN(time)) return true;
+        if (repeat.getTime() < starts.getTime()) {
+          alert('Repeat date value must be bigger than start date.');
+          $(this).val($('#event-ends-date').val());
+        } else {
+          $('#event-ends-date').val($(this).val());
+          $('#event-ends-hour').val($('#event-starts-hour').val());
+          $('#event-ends-minute').val(parseInt($('#event-starts-minute').val()) + 15);
+        }
+      } 
+    });
+    $('#event-starts-hour, #event-starts-minute, #event-ends-hour, #event-ends-minute').bind('change', function () {
+      $(this).validateDate();
+    });
   });
 }(jQuery, Drupal));
