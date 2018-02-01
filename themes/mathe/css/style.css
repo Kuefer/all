@@ -112,7 +112,7 @@ input[type]{
 }
 select:disabled,
 input[type]:disabled{
-  /*color:#858585!important;*/
+  color:#858585!important;
 }
 select{
   background-image:url('../images/account-dropdown.png');
