@@ -19,6 +19,7 @@ function calendar_init() {
   foreach($lib as $l) drupal_add_library('system', $l);
 
   drupal_add_js(drupal_get_path('module', 'calendar') . '/templates/js/calendar.js');
+  drupal_add_js(drupal_get_path('module', 'calendar') . '/templates/js/bootstrap-datetimepicker.min.js');
   drupal_add_css(drupal_get_path('module', 'calendar') . '/templates/css/styles.css');
   drupal_add_css(drupal_get_path('module', 'calendar') . '/templates/css/print.css');
   drupal_add_js(drupal_get_path('theme', 'mathe') . '/js/jquery.maskedinput-1.3.js');
@@ -79,7 +80,7 @@ function calendar_session () {
     $settings['user'] = $user->uid;
     $settings['duration'] = 15;
     $settings['start'] = 12;
-    $settings['mode'] = 0;
+    $settings['mode'] = 1;
     $settings['scroll'] = 0;
     $query = db_insert('nachhilfe_settings');
     $query->fields(array_keys($settings));
@@ -248,22 +249,25 @@ function calendar_session () {
     $eventBeforeStudent = array(
       'title' => $cns['title']['field']['text'],
       'nhus' => $cns['nhus']['field']['type'],
-      'startYear' => $cns['starts-date']['field']['date']['year'],
-      'startMonth' => sprintf("%02d",$cns['starts-date']['field']['date']['month']),
-      'startDay' => sprintf("%02d",$cns['starts-date']['field']['date']['day']),
-      'startHour' => sprintf("%02d",$cns['starts-time']['field']['time']['hour']),
-      'startMin' => sprintf("%02d",$cns['starts-time']['field']['time']['minute']),
-      'endsYear' => $cns['ends-date']['field']['date']['year'],
-      'endsMonth' => sprintf("%02d",$cns['ends-date']['field']['date']['month']),
-      'endsDay' => sprintf("%02d",$cns['ends-date']['field']['date']['day']),
-      'endsHour' => sprintf("%02d",$cns['ends-time']['field']['time']['hour']),
-      'endsMin' => sprintf("%02d",$cns['ends-time']['field']['time']['minute']),
+      'startYear' => $cns['starts']['field']['date']['year'],
+      'startMonth' => sprintf("%02d",$cns['starts']['field']['date']['month']),
+      'startDay' => sprintf("%02d",$cns['starts']['field']['date']['day']),
+      'startHour' => sprintf("%02d",$cns['starts']['field']['time']['hour']),
+      'startMin' => sprintf("%02d",$cns['starts']['field']['time']['minute']),
+      'endsYear' => $cns['ends']['field']['date']['year'],
+      'endsMonth' => sprintf("%02d",$cns['ends']['field']['date']['month']),
+      'endsDay' => sprintf("%02d",$cns['ends']['field']['date']['day']),
+      'endsHour' => sprintf("%02d",$cns['ends']['field']['time']['hour']),
+      'endsMin' => sprintf("%02d",$cns['ends']['field']['time']['minute']),
       'repeat' => $cns['repeat']['row']['select'],
       'endRepeat' => $cns['end-repeat']['row']['select'],
       'endRepeatDateNever' => $cns['end-repeat']['row']['select'],
+      'endRepeatDate' => $cns['end-repeat']['row']['date'],
+      /*
       'endRepeatDateYear' => $cns['end-repeat']['row']['date']['year'],
       'endRepeatDateMonth' => sprintf("%02d",$cns['end-repeat']['row']['date']['month']),
       'endRepeatDateDay' => sprintf("%02d",$cns['end-repeat']['row']['date']['day']),
+      */
       'student' => $cns['student']['field']['name'],
       'teacher' => $cns['group']['field']['group'],
       'eventId' => $cns['hidden']['event-id'],
@@ -776,6 +780,7 @@ function button_ends_days_month_callback ($form, &$form_state) {
     $commands[] = ajax_command_invoke(null, 'initDoc');
     return array('#type' => 'ajax', '#commands' => $commands);
 }
+/*
 function button_end_repeat_days_month_callback ($form, &$form_state) {
     $ends_year = $form['event']['end-repeat']['row']['date']['year']['#value'];
     $ends_month = $form['event']['end-repeat']['row']['date']['month']['#value'];
@@ -785,6 +790,7 @@ function button_end_repeat_days_month_callback ($form, &$form_state) {
     $commands[] = ajax_command_replace('#event-end-repeat-date-day', drupal_render($form['event']['end-repeat']['row']['date']['day']));
     return array('#type' => 'ajax', '#commands' => $commands);
 }
+*/
 function button_event_save_callback ($form, &$form_state) {
   $commands[] = ajax_command_invoke(null, 'refresh');
   return array('#type' => 'ajax', '#commands' => $commands);
@@ -799,25 +805,25 @@ function button_event_save_submit ($form, &$form_state) {
   $CalDAV = new Drupal_Sabre_CalDAV_Backend_PDO($pdo);
 
   $starts = strtotime(
-    $form_values['starts-date']['field']['date']['year'] . '-' .
-    $form_values['starts-date']['field']['date']['month'] . '-' .
-    $form_values['starts-date']['field']['date']['day'] . ' ' .
-    $form_values['starts-time']['field']['time']['hour'] . ':' .
-    $form_values['starts-time']['field']['time']['minute'] . ':00'
+    $form_values['starts']['field']['date']['year'] . '-' .
+    $form_values['starts']['field']['date']['month'] . '-' .
+    $form_values['starts']['field']['date']['day'] . ' ' .
+    $form_values['starts']['field']['time']['hour'] . ':' .
+    $form_values['starts']['field']['time']['minute'] . ':00'
   );
   $ends = strtotime(
-    $form_values['ends-date']['field']['date']['year'] . '-' .
-    $form_values['ends-date']['field']['date']['month'] . '-' .
-    $form_values['ends-date']['field']['date']['day'] . ' ' .
-    $form_values['ends-time']['field']['time']['hour'] . ':' .
-    $form_values['ends-time']['field']['time']['minute'] . ':00'
+    $form_values['ends']['field']['date']['year'] . '-' .
+    $form_values['ends']['field']['date']['month'] . '-' .
+    $form_values['ends']['field']['date']['day'] . ' ' .
+    $form_values['ends']['field']['time']['hour'] . ':' .
+    $form_values['ends']['field']['time']['minute'] . ':00'
   );
 
   if ($starts > $ends) return drupal_set_message(t('Endtime must be biger than start time'), 'error');
   #$change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
   $value = array('starts' => $starts, 'ends' => $ends);
   $value['type'] = (empty($form_values['nhus']['field']['type'])? 'None': $form_values['nhus']['field']['type']);
-  $value['summary'] = (empty($form_values['title']['field']['text'])? 'New event': $form_values['title']['field']['text']);
+  $value['summary'] = (empty($form_values['title']['field']['text'])? '': $form_values['title']['field']['text']);
   $value['repeat'] = (empty($form_values['repeat']['row']['select'])? false:  $form_values['repeat']['row']['select']);
   if (!empty($form_values['group']['field']['group'])) $value['calendarid'] = $form_values['group']['field']['group'];
     else return false;
@@ -840,9 +846,12 @@ function button_event_save_submit ($form, &$form_state) {
     $value['repeat_end'] = $form_values['end-repeat']['row']['select'];
     if ((int)$form_values['end-repeat']['row']['select'] !== 0) {
       $value['repeat_end_date'] = strtotime(
+        $form_values['end-repeat']['row']['date']
+        /*
         $form_values['end-repeat']['row']['date']['year'] . '-' .
         $form_values['end-repeat']['row']['date']['month'] . '-' .
         $form_values['end-repeat']['row']['date']['day']
+        */
       );
       if ($value['repeat_end_date'] < strtotime(date('Y-m-d'))) $value['repeat_end_date'] = $value['ends'];
     }
@@ -984,6 +993,13 @@ function events_block () {
 		'#suffix' => '</table>'
 	);
 //----------------------------------------------------
+    $form['event']['picker'] = array(
+        '#type' => 'textfield',
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
+        '#id' => 'event-starts-picker',
+    );
+//----------------------------------------------------
     $form['event']['close']['span'] = array(
         '#type' => 'markup',
         '#markup' => '<span id="close-panel"></span>',
@@ -995,7 +1011,7 @@ function events_block () {
         '#title' => 'Title',
         '#type' => 'textfield',
         '#id' => 'event-title',
-        '#size' => 33,
+        #'#size' => 33,
         '#attributes' => array('placeholder' => t('None')),
         '#prefix' => '<tr><td>',
         '#suffix' => '</td></tr>',
@@ -1007,24 +1023,36 @@ function events_block () {
         '#options' => drupal_map_assoc(array('None','NH+ÜS', 'NH', 'ÜS', 'PROBE')),
         '#type' => 'select',
         '#id' => 'event-nhus',
-        '#attributes' => array('placeholder' =>''),
         '#prefix' => '<tr><td>',
         '#suffix' => '</td></tr>',
-        '#maxlength' => 20
     );
 //----------------------------------------------------
-	$form['event']['starts-date']['header']['title'] = array(
+	$form['event']['starts']['header']['title'] = array(
 		'#markup' => '<tr><td><label for="event-starts">Starts date</label></td></tr>',
 	);
 //----------------------------------------------------
-    $form['event']['starts-date']['field']['date']['day'] = array(
+    $form['event']['starts']['field']['time']['hour'] = array(
         '#type' => 'select',
         '#prefix' => '<tr class="fix-date-select"><td>',
+        '#id' => 'event-starts-hour',
+        '#options' => drupal_map_assoc(array_merge($prepend, range(10,23)))
+    );
+    $form['event']['starts']['field']['time']['minute'] = array(
+        '#type' => 'select',
+        '#id' => 'event-starts-minute',
+        '#prefix' => '<span class="float-left twodots">&nbsp;</span>',
+        '#suffix' => '<span class="float-left slash">&nbsp;&nbsp;</span>',
+        '#options' => drupal_map_assoc(array_merge(array('00', '15', '30', '45')))
+    );
+//----------------------------------------------------
+//----------------------------------------------------
+    $form['event']['starts']['field']['date']['day'] = array(
+        '#type' => 'select',
         '#options' => drupal_map_assoc(range(1, 31)),
         '#default_value' => date('j'),
         '#id' => 'event-starts-date-day',
     );
-    $form['event']['starts-date']['field']['date']['month'] = array(
+    $form['event']['starts']['field']['date']['month'] = array(
         '#type' => 'select',
         '#options' => $months,
         '#default_value' => date('n'),
@@ -1035,50 +1063,41 @@ function events_block () {
             'callback' => 'button_starts_days_month_callback'
         )
     );
-    $form['event']['starts-date']['field']['date']['year'] = array(
+    $form['event']['starts']['field']['date']['year'] = array(
         '#type' => 'select',
         '#options' => drupal_map_assoc(range(1900, 2050)),
         '#default_value' => date('Y'),
         '#suffix' => '</td></tr>',
         '#id' => 'event-starts-date-year'
     );
-/*
-    $form['event']['starts']['field']['markup'] = array(
-		'#markup' => '<span class="float-left">&nbsp;&nbsp;&nbsp;&nbsp;</span>'
-	);
-*/
-  //----------------------------------------------------
-	$form['event']['starts-time']['header']['title'] = array(
-		'#markup' => '<tr><td><label for="event-starts-hour">Starts hour</label></td></tr>',
-	);
-//----------------------------------------------------
-    $form['event']['starts-time']['field']['time']['hour'] = array(
-        '#type' => 'select',
-        '#prefix' => '<tr class="fix-date-select"><td>',
-        '#id' => 'event-starts-hour',
-        '#suffix' => '<span class="float-left twodots">&nbsp;</span>',
-        '#options' => drupal_map_assoc(array_merge($prepend, range(10,23)))
-    );
-    $form['event']['starts-time']['field']['time']['minute'] = array(
-        '#type' => 'select',
-        '#suffix' => '</td></tr>',
-        '#id' => 'event-starts-minute',
-        '#options' => drupal_map_assoc(array_merge(array('00', '05'), range(10,55,5)))
-    );
 //----------------------------------------------------
 //----------------------------------------------------
-	$form['event']['ends-date']['header']['title'] = array(
+	$form['event']['ends']['header']['title'] = array(
 		'#markup' => '<tr><td><label for="event-ends">Ends </label></td></tr>'
 	);
 //----------------------------------------------------
-    $form['event']['ends-date']['field']['date']['day'] = array(
+    $form['event']['ends']['field']['time']['hour'] = array(
+        '#type' => 'select',
+        #'#prefix' => '<tr class="fix-date-select"><td>',
+        '#id' => 'event-ends-hour',
+        '#prefix' => '<tr class="fix-date-select"><td>',
+        '#options' => drupal_map_assoc(array_merge($prepend, range(10,23)))
+    );
+    $form['event']['ends']['field']['time']['minute'] = array(
+        '#type' => 'select',
+        '#id' => 'event-ends-minute',
+        '#prefix' => '<span class="float-left twodots">&nbsp;</span>',
+        '#suffix' => '<span class="float-left slash">&nbsp;&nbsp;</span>',
+        '#options' => drupal_map_assoc(array_merge(array('00', '15', '30', '45')))
+    );
+//----------------------------------------------------
+    $form['event']['ends']['field']['date']['day'] = array(
         '#type' => 'select',
         '#options' => drupal_map_assoc(range(1, 31)),
         '#default_value' => date('j'),
-        '#prefix' => '<tr class="fix-date-select"><td>',
         '#id' => 'event-ends-date-day'
     );
-    $form['event']['ends-date']['field']['date']['month'] = array(
+    $form['event']['ends']['field']['date']['month'] = array(
         '#type' => 'select',
         '#options' => $months,
         '#default_value' => date('n'),
@@ -1089,37 +1108,14 @@ function events_block () {
             'callback' => 'button_ends_days_month_callback'
         )
     );
-    $form['event']['ends-date']['field']['date']['year'] = array(
+    $form['event']['ends']['field']['date']['year'] = array(
         '#type' => 'select',
         '#options' => drupal_map_assoc(range(1900, 2050)),
         '#default_value' => date('Y'),
         '#suffix' => '</td></tr>',
-        '#suffix' => '<span class="float-left slash">&nbsp;</span>',
         '#id' => 'event-ends-date-year'
     );
-  /*
-	$form['event']['ends-date']['field']['markup'] = array(
-		'#markup' => '<span class="float-left">&nbsp;&nbsp;&nbsp;&nbsp;</span>'
-	);
-  */
 //----------------------------------------------------
-	$form['event']['ends-time']['header']['title'] = array(
-		'#markup' => '<tr><td><label for="event-ends">Ends hour</label></td></tr>'
-	);
-//----------------------------------------------------
-    $form['event']['ends-time']['field']['time']['hour'] = array(
-        '#type' => 'select',
-        '#prefix' => '<tr class="fix-date-select"><td>',
-        '#id' => 'event-ends-hour',
-        '#suffix' => '<span class="float-left twodots">&nbsp;</span>',
-        '#options' => drupal_map_assoc(array_merge($prepend, range(10,23)))
-    );
-    $form['event']['ends-time']['field']['time']['minute'] = array(
-        '#type' => 'select',
-        '#suffix' => '</td></tr>',
-        '#id' => 'event-ends-minute',
-        '#options' => drupal_map_assoc(array_merge(array('00', '05'), range(10,55,5)))
-    );
 //----------------------------------------------------
     $form['event']['repeat']['row']['select'] = array(
         '#type' => 'select',
@@ -1130,75 +1126,43 @@ function events_block () {
         '#options' => array('None', 'Every Week')
     );
 //----------------------------------------------------
-	$form['event']['end-repeat']['row'] = array(
-        '#prefix' => '<tr><td>',
-        '#suffix' => '</tr>',
-        '#type' => 'container',
-        '#states' => array(
-            'invisible' => array(
-                'select[name="event[repeat][row][select]"]' => array('value' => '0'),
-            )
-        ),
-	);
     $form['event']['end-repeat']['row']['select'] = array(
         '#type' => 'select',
         '#title' => 'End repeat',
         '#id' => 'event-end-repeat',
         '#options' => array('Never', 'On Date'),
-        #'#ajax' => array('callback' => 'select_change_end_repeat_callback')
-    );
-    $form['event']['end-repeat']['row']['date'] = array(
-        '#type' => 'container',
-        '#states' => array(
-            'visible' => array(
-                'select[name="event[end-repeat][row][select]"]' => array('value' => '1'),
-            )
-        ),
-    );
-    $form['event']['end-repeat']['row']['date']['year'] = array(
-        '#type' => 'select',
-        '#options' => drupal_map_assoc(range(1900, 2050)),
-        '#default_value' => date('Y'),
-        '#suffix' => '<span class="float-left slash">&nbsp;</span>',
-        '#id' => 'event-end-repeat-date-year',
-    );
-    $form['event']['end-repeat']['row']['date']['month'] = array(
-        '#type' => 'select',
-        '#options' => $months,
-        '#default_value' => date('n'),
-        '#id' => 'event-end-repeat-date-month',
-        '#suffix' => '<span class="float-left slash">&nbsp;</span>',
-        '#ajax' => array(
-            'callback' => 'button_end_repeat_days_month_callback'
-        )
-    );
-    $form['event']['end-repeat']['row']['date']['day'] = array(
-        '#type' => 'select',
-        '#options' => drupal_map_assoc(range(1, 31)),
-        '#default_value' => date('j'),
-        '#id' => 'event-end-repeat-date-day',
-        '#suffix' => '</td>',
-    );
-//----------------------------------------------------
-	$form['event']['change-only']['row'] = array(
         '#prefix' => '<tr><td>',
-        '#suffix' => '</tr>',
-        '#type' => 'container',
+        '#suffix' => '</td></tr>',
         '#states' => array(
             'invisible' => array(
                 'select[name="event[repeat][row][select]"]' => array('value' => '0'),
             )
         ),
-	);
-  /*
+    );
+  //----------------------------------------------------
+  //----------------------------------------------------
+    $form['event']['end-repeat']['row']['date'] = array(
+        '#title' => t('End repeat date'),
+        '#type' => 'textfield',
+        '#id' => 'event-end-repeat-date',
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
+        '#states' => array(
+            'invisible' => array(
+                'select[name="event[end-repeat][row][select]"]' => array('value' => '0'),
+            )
+        ),
+    );
+//----------------------------------------------------
+//----------------------------------------------------
+
     $form['event']['change-only']['row']['checkbox'] = array(
         '#title' => t('Change only this event.'),
         '#type' => 'checkbox',
-        #'#id' => 'event-end-repeat-all',
         '#id' => 'event-change-only',
-        '#suffix' => '</td>',
+        '#prefix' => '<tr><td><br>',
+        '#suffix' => '</td></tr>'
     );
-    */
 //----------------------------------------------------
 	$form['event']['student']['header']['title'] = array(
 		'#markup' => '<tr><td><label for="event-students">' . t('Student') . '</label></td></tr>'
@@ -1217,7 +1181,7 @@ function events_block () {
     $form['event']['student']['field']['name'] = array(
         #'#title' => t('Class student') . ' <a id="button-new-student" >' . t('(New)') . '</a>',
         '#type' => 'textfield',
-        '#size' => 33,
+        #'#size' => 33,
         '#id' => 'event-students',
         '#attributes' => array('placeholder' =>'None', 'class' => array('event-student-input')),
         '#prefix' => '<tr><td>

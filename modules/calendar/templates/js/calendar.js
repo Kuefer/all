@@ -28,7 +28,6 @@
   };
 //----------------
   $.fn.newEvent = function () {
-    console.log(Drupal.settings.calendar.duration);
     var data = $(this).data(),
       d = new Date(),
       tag = $('<div></div>'),
@@ -387,8 +386,8 @@
     });
 //----------------
     $('.event').draggable({
-      //axis: 'y',
-      //containment: '.calendar-day',
+      axis: 'y',
+      containment: '.calendar-day',
       cursorAt: { top: 1 },
       snap: '.selectable',
       scroll: true,
@@ -479,5 +478,7 @@
     $(this).fixEventsWidth();
     $(this).initEvents();
     $(this).initGroups();
+    
+    $('#event-starts-picker').datetimepicker();
   });
 }(jQuery, Drupal));

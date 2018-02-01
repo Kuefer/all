@@ -107,7 +107,7 @@ function general_form ($form, &$form_state) {
     '#default_value' => $settings->start,
     '#states' => array(
       'disabled' => array(
-        'select[name="settings[mode]"]' => array('value' => '1'),
+        'select[name="settings[mode]"]' => array('value' => '0'),
       ),
     ),
   );
