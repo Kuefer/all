@@ -1,6 +1,115 @@
 <?php
 use Sabre\VObject;
+/*
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Apple Inc.//Mac OS X 10.11.6//EN
+CALSCALE:GREGORIAN
 
+BEGIN:VTIMEZONE
+TZID:Europe/Berlin
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+DTSTART:19810329T020000
+TZNAME:GMT+2
+TZOFFSETTO:+0200
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+DTSTART:19961027T030000
+TZNAME:GMT+1
+TZOFFSETTO:+0100
+END:STANDARD
+END:VTIMEZONE
+
+BEGIN:VEVENT
+CREATED:20180202T074153Z
+UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
+RRULE:FREQ=WEEKLY;INTERVAL=1;UNTIL=20180216T225959Z
+DTEND;TZID=Europe/Berlin:20180202T020000
+TRANSP:OPAQUE
+X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+SUMMARY:New Event
+DTSTART;TZID=Europe/Berlin:20180202T010000
+DTSTAMP:20180202T074203Z
+SEQUENCE:0
+END:VEVENT
+
+END:VCALENDAR
+-----------------
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Apple Inc.//Mac OS X 10.11.6//EN
+CALSCALE:GREGORIAN
+  BEGIN:VTIMEZONE
+  TZID:Europe/Berlin
+  BEGIN:DAYLIGHT
+  TZOFFSETFROM:+0100
+  RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+  DTSTART:19810329T020000
+  TZNAME:GMT+2
+  TZOFFSETTO:+0200
+  END:DAYLIGHT
+    BEGIN:STANDARD
+    TZOFFSETFROM:+0200
+    RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+    DTSTART:19961027T030000
+    TZNAME:GMT+1
+    TZOFFSETTO:+0100
+    END:STANDARD
+  END:VTIMEZONE
+
+--- ORIGINAL POST
+BEGIN:VEVENT
+DTEND;TZID=Europe/Berlin:20180202T020000
+RRULE:FREQ=WEEKLY;INTERVAL=1;UNTIL=20180216T225959Z
+DTSTART;TZID=Europe/Berlin:20180202T010000
+SUMMARY:New Event
+
+CREATED:20180202T074153Z
+UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
+TRANSP:OPAQUE
+DTSTAMP:20180202T074203Z
+X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+SEQUENCE:0
+END:VEVENT
+--
+
+BEGIN:VEVENT
+  RRULE:FREQ=WEEKLY;INTERVAL=1;UNTIL=20180216T225959Z
+  SUMMARY:New Event
+  DTEND;TZID=Europe/Berlin:20180202T020000
+  DTSTART;TZID=Europe/Berlin:20180202T010000
+  
+  
+  CREATED:20180202T074153Z
+  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
+  TRANSP:OPAQUE
+  DTSTAMP:20180202T074203Z
+  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+  SEQUENCE:0
+END:VEVENT
+
+BEGIN:VEVENT
+  RECURRENCE-ID;TZID=Europe/Berlin:20180209T010000
+  SUMMARY:New Event edited
+  DTEND;TZID=Europe/Berlin:20180209T020000
+  DTSTART;TZID=Europe/Berlin:20180209T010000
+  
+  
+  CREATED:20180202T074153Z
+  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
+  TRANSP:OPAQUE
+  DTSTAMP:20180202T074247Z
+  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+  SEQUENCE:0
+END:VEVENT
+
+END:VCALENDAR
+
+*/
 function calendar_init() {
   #require(__DIR__ . '/include/caldavclient.php');
   $lib= array(
@@ -916,13 +1025,22 @@ repeat_end_date (Boolean) FALSE
     $object = $object->execute()->fetch();
     #get event from db
     $vevent = VObject\Reader::read($object->calendardata);
-
+dpm($vevent->serialize());
+dpm('#---#');
     #add new values
     $vevent->VEVENT->SUMMARY = $value->summary;
     $vevent->VEVENT->DESCRIPTION = $value->type;
     $vevent->VEVENT->DTSTART = new \DateTime(date('Y-m-d H:i:s', $value->starts));
     $vevent->VEVENT->DTEND = new \DateTime(date('Y-m-d H:i:s', $value->ends));
 
+    $vevent->VEVENT->VEVENT = new VObject\Component\VEvent(array(
+        'VEVENT' => array(
+          'SUMMARY' => $value->summary ,
+          'DESCRIPTION' => $value->type ,
+          'DTSTART' => new \DateTime(date('Y-m-d H:i:s', $value->starts)), #'2017-09-09 21:00:00'),
+          'DTEND'  => new \DateTime(date('Y-m-d H:i:s', $value->ends))
+      )));
+    
     #if we have invitees append to event
     if($value->student){
       $vevent->VEVENT->ATTENDEE = $value->student_mail;
@@ -954,11 +1072,11 @@ repeat_end_date (Boolean) FALSE
     /*--------------------------------------*/
     #(int)$change_only == 1
     /*--------------------------------------*/
-
+return dpm($vevent->serialize());
     #if changes the group, delete (does't work otherway with ical) the old event and create a new one
     if($object->calendarid !== $value->calendarid){
-      $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $vevent->serialize());
       $CalDAV->deleteCalendarObject(array($object->calendarid,0), $object->uri);
+      $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $vevent->serialize());
     }
     #make changes to db with new values added to event object
     else{
@@ -969,9 +1087,6 @@ repeat_end_date (Boolean) FALSE
     if(!empty($response)) return drupal_set_message(t('Event saved successfully'), 'status flash');
   }
   #else if((int)$form_values['hidden']['event-id'] !== 0 && (int)$change_only == 1){}
-}
-function validate_ends_date_callback ($form, &$form_state) {
-  
 }
 function events_block () {
   global $user;
@@ -1040,7 +1155,6 @@ function events_block () {
         '#prefix' => '<tr class="fix-date-select"><td>',
         '#id' => 'event-starts-hour',
         '#options' => drupal_map_assoc(array_merge($prepend, range(10,23))),
-        '#ajax' => array('callback' => 'validate_ends_date_callback')
     );
     $form['event']['starts']['field']['time']['minute'] = array(
         '#type' => 'select',
@@ -1048,7 +1162,6 @@ function events_block () {
         '#prefix' => '<span class="float-left twodots">&nbsp;</span>',
         '#suffix' => '</td></tr>',
         '#options' => drupal_map_assoc(array_merge(array('00', '15', '30', '45'))),
-        '#ajax' => array('callback' => 'validate_ends_date_callback')
     );
 //----------------------------------------------------
 //----------------------------------------------------
@@ -1071,7 +1184,6 @@ function events_block () {
         '#id' => 'event-ends-hour',
         '#prefix' => '<tr class="fix-date-select"><td>',
         '#options' => drupal_map_assoc(array_merge($prepend, range(10,23))),
-        '#ajax' => array('callback' => 'validate_ends_date_callback')
     );
     $form['event']['ends']['field']['time']['minute'] = array(
         '#type' => 'select',
@@ -1079,7 +1191,6 @@ function events_block () {
         '#prefix' => '<span class="float-left twodots">&nbsp;</span>',
         '#suffix' => '</td></tr>',
         '#options' => drupal_map_assoc(array_merge(array('00', '15', '30', '45'))),
-        '#ajax' => array('callback' => 'validate_ends_date_callback')
     );
 //----------------------------------------------------
 //----------------------------------------------------
@@ -1113,7 +1224,6 @@ function events_block () {
         '#id' => 'event-end-repeat-date',
         '#prefix' => '<tr><td>',
         '#suffix' => '</td></tr>',
-        #'#ajax' => array('callback' => 'validate_ends_date_callback')
         '#states' => array(
             'invisible' => array(
                 'select[name="event[end-repeat][row][select]"]' => array('value' => '0'),
@@ -1127,7 +1237,7 @@ function events_block () {
         '#type' => 'checkbox',
         '#id' => 'event-change-only',
         '#prefix' => '<tr><td><br>',
-        '#suffix' => '</td></tr>'
+        '#suffix' => '<br></td></tr>'
     );
 //----------------------------------------------------
 	$form['event']['student']['header']['title'] = array(

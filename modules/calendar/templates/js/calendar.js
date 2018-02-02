@@ -53,8 +53,8 @@
     $('#event-id').val(0);
     $('#event-student-id').val(0);
     $('#event-title').attr('placeholder', 'None').val('');
-    $('#event-starts-date').val(('0' + date[2]).slice(-2) +'/'+ ('0' + date[1]).slice(-2) +'/'+ date[0]);
-    $('#event-ends-date').val(('0' + date[2]).slice(-2) +'/'+ ('0' + date[1]).slice(-2) +'/'+ date[0]);
+    $('#event-starts-date').val(('0' + date[2]).slice(-2) +'-'+ ('0' + date[1]).slice(-2) +'-'+ date[0]);
+    $('#event-ends-date').val(('0' + date[2]).slice(-2) +'-'+ ('0' + date[1]).slice(-2) +'-'+ date[0]);
     $('#event-starts-hour').val(starthour);
     $('#event-starts-minute').val(startminute);
     $('#event-ends-hour').val(endhour);
@@ -300,29 +300,6 @@
     $(selectable).prepend(focused);
   };
 //----------------
-  $.fn.validateDate = function () {
-    var startDate = $('#event-starts-date').val().split('/'),
-        startHour = $('#event-starts-hour').val(),
-        startMin = $('#event-starts-minute').val(),
-        endDate = $('#event-ends-date').val().split('/'),
-        endHour = $('#event-ends-hour').val(),
-        endMin = $('#event-ends-minute').val(),
-        starts = new Date(startDate[2], startDate[1], startDate[0], startHour, startMin, '00'),
-        ends = new Date(endDate[2], endDate[1], endDate[0], endHour, endMin, '00'),
-        time = ends.getTime() - starts.getTime();
-    if (isNaN(time)) return true;
-    if (starts.getTime() > ends.getTime()) {
-      $('#event-ends-date').val($('#event-starts-date').val());
-      $('#event-ends-hour').val($('#event-starts-hour').val());
-      $('#event-ends-minute').val(parseInt($('#event-starts-minute').val()) + 15);
-      return true;
-    }
-    alert('End date and time must have a bigger value.');
-    $('#event-ends-date').val($('#event-starts-date').val());
-    $('#event-ends-hour').val($('#event-starts-hour').val());
-    $('#event-ends-minute').val(parseInt($('#event-starts-minute').val()) + 15);
-  };
-//----------------
   $.fn.initEvents = function () {
 //----------------
     $('.event').bind('click', function () {
@@ -332,9 +309,7 @@
       $(this).addClass('focused');
       $(document).fixZIndex();
       $(document).fillEventForm($(this).data());
-      //$('.page-right').show();
       $('#block-calendar-events').show().siblings().hide();
-      $('.event').css();
     });
 //----------------
     $('#event-starts-hour, #event-starts-minute, #event-ends-hour, #event-ends-minute').change(function () {
@@ -468,6 +443,35 @@
     }
   };
 //----------------
+//----------------
+  $.fn.validateDate = function () {
+    var startDate = $('#event-starts-date').val().split('-'),
+        startHour = $('#event-starts-hour').val(),
+        startMin = $('#event-starts-minute').val(),
+        endDate = $('#event-ends-date').val().split('-'),
+        endHour = $('#event-ends-hour').val(),
+        endMin = $('#event-ends-minute').val(),
+        starts = new Date(startDate[2], startDate[1], startDate[0], startHour, startMin, '00'),
+        ends = new Date(endDate[2], endDate[1], endDate[0], endHour, endMin, '00'),
+        time = ends.getTime() - starts.getTime();
+    
+    if (isNaN(time)) return true;
+    if (starts.getTime() === ends.getTime()) {
+      if (parseInt(startMin) === 45) {
+        $('#event-ends-hour').val(parseInt(startHour) + 1);
+        $('#event-ends-minute').val('00');
+      }
+      else $('#event-ends-minute').val(parseInt(startMin) + 15);
+      return true;
+    }
+    if (starts.getTime() > ends.getTime()) {
+      $('#event-ends-date').val($('#event-starts-date').val());
+      $('#event-ends-hour').val(parseInt(startHour) + 1);
+      return true;
+    }
+    //alert('End date and time must have a bigger value.');
+  };
+//----------------
   $(document).ready(function () {
     $(this).initDoc();
 //----------------
@@ -475,7 +479,7 @@
     $(this).fixEventsWidth();
     $(this).initEvents();
     $(this).initGroups();
-    
+
     $('#event-starts-date, #event-ends-date').datepicker({
       dateFormat: 'dd-mm-yy',
       onSelect: function(date) {
@@ -504,6 +508,7 @@
         }
       } 
     });
+
     $('#event-starts-hour, #event-starts-minute, #event-ends-hour, #event-ends-minute').bind('change', function () {
       $(this).validateDate();
     });
