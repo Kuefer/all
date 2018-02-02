@@ -182,7 +182,6 @@ function calendar_session () {
         $rrule = array();
         $event = $CalDAV->getCalendarObject(array($calendar['id'][0],0), $ics);
         $data = VObject\Reader::read($event['calendardata']);
-
         #is a repeted event? (verify first while the repeat date is here).
         if(!empty((string) $data->VEVENT->RRULE)){
           foreach(explode(';', (string) $data->VEVENT->RRULE) as $rule){
@@ -194,9 +193,9 @@ function calendar_session () {
         #verify date if is today event or between, for repeated events.
         $start = strtotime((string) $data->VEVENT->DTSTART);
         $end = strtotime((string) $data->VEVENT->DTEND);
-
+      
         if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
-        
+
         if (isset($rrule['freq'])) {
           #is the same week day?
           if (date('w', $start) !== date('w', strtotime(date('Y-m-d', $date)))) continue;
@@ -276,7 +275,7 @@ function calendar_session () {
     drupal_add_js(array('studentBeforeEvent' => $eventBeforeStudent), array('type' => 'setting'));
   }
   /* ------------------------------------------------------------------- */
-  /* DEBUG -------------------------------------------------------- */
+  /* debug ---------------------------------------------------------- */
   #dpm($events);
   /* ------------------------------------------------------------------- */
 
@@ -815,12 +814,12 @@ function button_event_save_submit ($form, &$form_state) {
     $form_values['ends']['field']['time']['hour'] . ':' .
     $form_values['ends']['field']['time']['minute'] . ':00'
   );
-
+  
   if ($starts > $ends) return drupal_set_message(t('Endtime must be biger than start time'), 'error');
   #$change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
   $value = array('starts' => $starts, 'ends' => $ends);
   $value['type'] = (empty($form_values['nhus']['field']['type'])? 'None': $form_values['nhus']['field']['type']);
-  $value['summary'] = (empty($form_values['title']['field']['text'])? '': $form_values['title']['field']['text']);
+  $value['summary'] = (empty($form_values['title']['field']['text'])? false: $form_values['title']['field']['text']);
   $value['repeat'] = (empty($form_values['repeat']['row']['select'])? false:  $form_values['repeat']['row']['select']);
   if (!empty($form_values['group']['field']['group'])) $value['calendarid'] = $form_values['group']['field']['group'];
     else return false;
@@ -855,7 +854,18 @@ function button_event_save_submit ($form, &$form_state) {
   }
 
   $value = (object) $value;
-
+  
+/*
+starts (Integer) 1514915100
+ends (Integer) 1514916000
+type (String, 4 characters ) None
+summary (Boolean) FALSE
+repeat (Boolean) FALSE
+calendarid (String, 1 characters ) 2
+student (Boolean) FALSE
+repeat_end (Boolean) FALSE
+repeat_end_date (Boolean) FALSE
+*/
   #NEW event
   if ((int)$form_values['hidden']['event-id'] == 0){
     try{
@@ -1091,7 +1101,7 @@ function events_block () {
         '#suffix' => '</td></tr>',
         '#states' => array(
             'invisible' => array(
-                'select[name="event[repeat][row][select]"]' => array('value' => '1'),
+                'select[name="event[repeat][row][select]"]' => array('value' => '0'),
             )
         ),
     );
@@ -1106,7 +1116,7 @@ function events_block () {
         #'#ajax' => array('callback' => 'validate_ends_date_callback')
         '#states' => array(
             'invisible' => array(
-                'select[name="event[end-repeat][row][select]"]' => array('value' => '1'),
+                'select[name="event[end-repeat][row][select]"]' => array('value' => '0'),
             )
         ),
     );

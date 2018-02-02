@@ -184,8 +184,8 @@
 
     $('#event-nhus').val(event.nhus);
     
-    $('#event-starts-date').val(('0' + startst[2]).slice(-2) +'/'+ ('0' + startst[1]).slice(-2) +'/'+ endst[0]);
-    $('#event-ends-date').val(('0' + endst[2]).slice(-2) +'/'+ ('0' + endst[1]).slice(-2) +'/'+ endst[0]);
+    $('#event-starts-date').val(('0' + startst[2]).slice(-2) +'-'+ ('0' + startst[1]).slice(-2) +'-'+ endst[0]);
+    $('#event-ends-date').val(('0' + endst[2]).slice(-2) +'-'+ ('0' + endst[1]).slice(-2) +'-'+ endst[0]);
     
     $('#event-starts-hour').val(startsh[0]);
     $('#event-starts-minute').val(startsh[1]);
@@ -310,7 +310,13 @@
         starts = new Date(startDate[2], startDate[1], startDate[0], startHour, startMin, '00'),
         ends = new Date(endDate[2], endDate[1], endDate[0], endHour, endMin, '00'),
         time = ends.getTime() - starts.getTime();
-    if (isNaN(time) || time > 0) return true;
+    if (isNaN(time)) return true;
+    if (starts.getTime() > ends.getTime()) {
+      $('#event-ends-date').val($('#event-starts-date').val());
+      $('#event-ends-hour').val($('#event-starts-hour').val());
+      $('#event-ends-minute').val(parseInt($('#event-starts-minute').val()) + 15);
+      return true;
+    }
     alert('End date and time must have a bigger value.');
     $('#event-ends-date').val($('#event-starts-date').val());
     $('#event-ends-hour').val($('#event-starts-hour').val());
@@ -471,12 +477,14 @@
     $(this).initGroups();
     
     $('#event-starts-date, #event-ends-date').datepicker({
+      dateFormat: 'dd-mm-yy',
       onSelect: function(date) {
         $(this).validateDate();
       } 
     });
 
     $('#event-end-repeat-date').datepicker({
+      dateFormat: 'dd-mm-yy',
       onSelect: function(date) {
         var startDate = $('#event-starts-date').val().split('/'),
             startHour = $('#event-starts-hour').val(),
