@@ -356,25 +356,16 @@ function calendar_session () {
     $eventBeforeStudent = array(
       'title' => $cns['title']['field']['text'],
       'nhus' => $cns['nhus']['field']['type'],
-      'startYear' => $cns['starts']['field']['date']['year'],
-      'startMonth' => sprintf("%02d",$cns['starts']['field']['date']['month']),
-      'startDay' => sprintf("%02d",$cns['starts']['field']['date']['day']),
+      'startDate' => $cns['starts']['field']['date'],
       'startHour' => sprintf("%02d",$cns['starts']['field']['time']['hour']),
       'startMin' => sprintf("%02d",$cns['starts']['field']['time']['minute']),
-      'endsYear' => $cns['ends']['field']['date']['year'],
-      'endsMonth' => sprintf("%02d",$cns['ends']['field']['date']['month']),
-      'endsDay' => sprintf("%02d",$cns['ends']['field']['date']['day']),
+      'endsDate' => $cns['ends']['field']['date'],
       'endsHour' => sprintf("%02d",$cns['ends']['field']['time']['hour']),
       'endsMin' => sprintf("%02d",$cns['ends']['field']['time']['minute']),
       'repeat' => $cns['repeat']['row']['select'],
       'endRepeat' => $cns['end-repeat']['row']['select'],
       'endRepeatDateNever' => $cns['end-repeat']['row']['select'],
       'endRepeatDate' => $cns['end-repeat']['row']['date'],
-      /*
-      'endRepeatDateYear' => $cns['end-repeat']['row']['date']['year'],
-      'endRepeatDateMonth' => sprintf("%02d",$cns['end-repeat']['row']['date']['month']),
-      'endRepeatDateDay' => sprintf("%02d",$cns['end-repeat']['row']['date']['day']),
-      */
       'student' => $cns['student']['field']['name'],
       'teacher' => $cns['group']['field']['group'],
       'eventId' => $cns['hidden']['event-id'],
@@ -1024,30 +1015,70 @@ repeat_end_date (Boolean) FALSE
     $object->condition('co.id', (int)$form_values['hidden']['event-id']);
     $object = $object->execute()->fetch();
     #get event from db
-    $vevent = VObject\Reader::read($object->calendardata);
-dpm($vevent->serialize());
-dpm('#---#');
+    $event = VObject\Reader::read($object->calendardata);
+    #extract EVENT from CALENDAR
+    preg_match("'(.*?)BEGIN:VEVENT'si", $event->serialize(), $beginVcalendar);
+    preg_match("'END:VEVENT(.*?)'si", $event->serialize(), $endVcalendar);
+    preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $event->serialize(), $veventRead);
+    dpm($beginVcalendar);
+    dpm('#--# begin');
+    dpm($veventRead);
+    dpm('#--# read');
+    dpm($endVcalendar);
+    dpm('#--# end');
+    dpm('#--#');
+/*
+BEGIN:VEVENT
+  RRULE:FREQ=WEEKLY;INTERVAL=1;UNTIL=20180216T225959Z
+  SUMMARY:New Event
+  DTEND;TZID=Europe/Berlin:20180202T020000
+  DTSTART;TZID=Europe/Berlin:20180202T010000
+  
+  CREATED:20180202T074153Z
+  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
+  TRANSP:OPAQUE
+  DTSTAMP:20180202T074203Z
+  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+  SEQUENCE:0
+END:VEVENT
+
+BEGIN:VEVENT
+  RECURRENCE-ID;TZID=Europe/Berlin:20180209T010000
+  SUMMARY:New Event edited
+  DTEND;TZID=Europe/Berlin:20180209T020000
+  DTSTART;TZID=Europe/Berlin:20180209T010000
+  
+  CREATED:20180202T074153Z
+  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
+  TRANSP:OPAQUE
+  DTSTAMP:20180202T074247Z
+  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+  SEQUENCE:0
+END:VEVENT
+*/
+    #rebuild event with both VEVENT
+    $vevent = new VObject\Component\VCalendar(array(
+      'VEVENT' => array(
+        'SUMMARY' => $value->summary ,
+        'DESCRIPTION' => $value->type ,
+        'DTSTART' => new \DateTime(date('Y-m-d H:i:s', $value->starts)), #'2017-09-09 21:00:00'),
+        'DTEND'  => new \DateTime(date('Y-m-d H:i:s', $value->ends))
+    )));
+    
     #add new values
     $vevent->VEVENT->SUMMARY = $value->summary;
     $vevent->VEVENT->DESCRIPTION = $value->type;
     $vevent->VEVENT->DTSTART = new \DateTime(date('Y-m-d H:i:s', $value->starts));
     $vevent->VEVENT->DTEND = new \DateTime(date('Y-m-d H:i:s', $value->ends));
 
-    $vevent->VEVENT->VEVENT = new VObject\Component\VEvent(array(
-        'VEVENT' => array(
-          'SUMMARY' => $value->summary ,
-          'DESCRIPTION' => $value->type ,
-          'DTSTART' => new \DateTime(date('Y-m-d H:i:s', $value->starts)), #'2017-09-09 21:00:00'),
-          'DTEND'  => new \DateTime(date('Y-m-d H:i:s', $value->ends))
-      )));
-    
     #if we have invitees append to event
     if($value->student){
       $vevent->VEVENT->ATTENDEE = $value->student_mail;
       $vevent->VEVENT->ATTENDEE['EMAIL'] = $value->student_mail;
       $vevent->VEVENT->ATTENDEE['CN'] = $value->student_name;
       $vevent->VEVENT->ATTENDEE['ID'] = $value->student;
-    } else $vevent->VEVENT->remove('ATTENDEE');
+    } 
+    #else $vevent->VEVENT->remove('ATTENDEE');
 
     #is a repeted event, with an end date
     if($value->repeat_end){
@@ -1057,6 +1088,7 @@ dpm('#---#');
         'INTERVAL' => 1,
         'UNTIL' => date('Ymd\THis', $value->repeat_end_date)
       ));
+      
     }
     #is a repeted event every week
     elseif($value->repeat){
@@ -1067,12 +1099,17 @@ dpm('#---#');
       ));
     }
     #is not a repeted event
-    else $vevent->VEVENT->remove('RRULE');
-
+    #else $vevent->VEVENT->remove('RRULE');
+    preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $vevent->serialize(), $veventNew);
     /*--------------------------------------*/
     #(int)$change_only == 1
     /*--------------------------------------*/
-return dpm($vevent->serialize());
+    dpm($veventNew);
+    dpm('#--# New');
+    #IF IS EDITED A REPEATED EVENT WITH CHECKBOX ONLY THID EVENT EDIT
+    $vevent = $beginVcalendar[1] . "\n" . $veventRead[0] . "\n\n" . $veventNew[0] . "\n" . 'END:VCALENDAR';
+
+return dpm($vevent);
     #if changes the group, delete (does't work otherway with ical) the old event and create a new one
     if($object->calendarid !== $value->calendarid){
       $CalDAV->deleteCalendarObject(array($object->calendarid,0), $object->uri);

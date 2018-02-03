@@ -236,11 +236,13 @@
   $.fn.setNewEvent = function () {
     if (typeof Drupal.settings.studentBeforeEvent !== 'object') {return false; }
     var data = Drupal.settings.studentBeforeEvent,
+      startsDate = data.startDate.split('-'),
+      endsDate = data.endsDate.split('-'),
       //height = Drupal.settings.calendar.duration,
       zValue = $('.event').length + 1,
       tag = $('<div></div>'),
-      starts = new Date(data.startYear, data.startMonth, data.startDay, data.startHour, data.startMin, '00'),
-      ends = new Date(data.endsYear, data.endsMonth, data.endsDay, data.endsHour, data.endsMin, '00'),
+      starts = new Date(startsDate[2], startsDate[1], startsDate[0], data.startHour, data.startMin, '00'),
+      ends = new Date(endsDate[2], endsDate[1], endsDate[0], data.endsHour, data.endsMin, '00'),
       height = ends.getTime() - starts.getTime();
 
     $(tag).addClass('event create focused');
@@ -249,30 +251,27 @@
     $(tag).html('<span class="event-content-hours">' + data.startHour + ':' + data.startMin + ' - ' + data.endsHour + ':' + data.endsMin + ' </span><br>');
     $('div.selectable[data-starthour="d' + data.startHour + '"][data-startminute="d' + data.startMin + '"]').append(tag);
     $('.focused').css('height', height / 60000 - 5);
-
     $(document).fixZIndex();
-
     $('#event-title').attr('placeholder', 'None').val(data.title);
     $('#event-nhus').val(data.nhus);
-    $('#event-starts-date').val(('0' + data.startDay).slice(-2) + ' ' + ('0' + data.startMonth).slice(-2) + ' ' + data.startYear);
-    $('#event-ends-date').val(('0' + data.endsDay).slice(-2) + ' ' + ('0' + data.endsMonth).slice(-2) + ' ' + data.endsYear);
-    
+    $('#event-starts-date').val(data.startDate);
+    $('#event-ends-date').val(data.endsDate);
     $('#event-starts-hour').val(data.startHour);
     $('#event-starts-minute').val(data.startMin);
     $('#event-ends-hour').val(data.endsHour);
     $('#event-ends-minute').val(data.endsMin);
-
     $('#event-repeat').val(data.repeat).change();
     $('#event-end-repeat').val(data.endRepeat).change();
-
-    $('#event-end-repeat-date').val(data.endRepeatDateDay +'/'+ data.endRepeatDateMonth +'/'+ data.endRepeatDateYear);
-    //$('#event-end-repeat-date-month').val(data.endRepeatDateMonth);
-    //$('#event-end-repeat-date-day').val(data.endRepeatDateDay);
-
-    $('#event-students').attr('placeholder', 'None').val('');
-    $('.form-item-event-student-field-name').hide();
-    $('#event-student-tag').show();
-    $('#event-student-name').text(data.student);
+    $('#event-end-repeat-date').val(data.endRepeatDate);
+    if(data.student.length === 0) {
+      $('#event-students').attr('placeholder', 'None').val('');
+      $('#event-student-tag').hide();
+      $('.form-item-event-student-field-name').show();
+    } else {
+      $('.form-item-event-student-field-name').hide();
+      $('#event-student-tag').show();
+      $('#event-student-name').text(data.student);
+    }
 
     $('#event-group-select').val(data.teacher);
 
@@ -511,6 +510,15 @@
 
     $('#event-starts-hour, #event-starts-minute, #event-ends-hour, #event-ends-minute').bind('change', function () {
       $(this).validateDate();
+    });
+    
+    $(document).keypress(function (e) {
+      if (e.which == 13) {
+        if($('#block-calendar-events:hidden').length === 0) {
+          // $('#event-save').trigger();
+        }
+        return false;
+      }
     });
   });
 }(jQuery, Drupal));

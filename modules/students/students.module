@@ -231,17 +231,15 @@ function students_create_form_submit ($form, &$form_state) {
   else {
 
     if (isset($_SESSION['calendar_new_student']) && !empty($registered->uid)) {
-
       $event_before_student = $_SESSION['calendar_new_student'];
-      #unset($_SESSION['calendar_new_student']);
 
-      $ebday = sprintf("%02d", $event_before_student['starts-date']['field']['date']['day']);
-      $ebmonth = sprintf("%02d", $event_before_student['starts-date']['field']['date']['month']);
-      $ebyear = $event_before_student['starts-date']['field']['date']['year'];
+dpm($event_before_student['starts']['field']['date']);
+
+      $ebDate = date('Y/m/d', strtotime($event_before_student['starts']['field']['date']));
       $_SESSION['calendar_new_student']['student']['field']['name'] = $values->student_firstname .' '. $values->student_lastname;
       $_SESSION['calendar_new_student']['hidden']['student'] = $registered->uid;
-
-      drupal_goto('calendar/' . $ebyear . '/' . $ebmonth . '/' . $ebday . '');
+dpm($ebDate);
+      drupal_goto('calendar/' . $ebDate);
     }
     return drupal_set_message(t('Entry created successfully.'), 'status');
   }
