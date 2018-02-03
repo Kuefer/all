@@ -282,7 +282,7 @@
   };
 //----------------
   $.fn.setDomEvent = function (event) {
-    var date = $('#event-starts-date').val().split('/'),
+    var date = $('#event-starts-date').val().split('-'),
       starts_hour = $('#event-starts-hour').val(),
       starts_min = $('#event-starts-minute').val(),
       ends_hour = $('#event-ends-hour').val(),
@@ -314,6 +314,7 @@
     $('#event-starts-hour, #event-starts-minute, #event-ends-hour, #event-ends-minute').change(function () {
       var event = $('.focused');
       $(document).setDomEvent(event);
+      $(this).validateDate();
     });
 //----------------
     $('.groups-block tr').mouseover(function () {
@@ -506,10 +507,6 @@
           $('#event-ends-minute').val(parseInt($('#event-starts-minute').val()) + 15);
         }
       } 
-    });
-
-    $('#event-starts-hour, #event-starts-minute, #event-ends-hour, #event-ends-minute').bind('change', function () {
-      $(this).validateDate();
     });
     
     $(document).keypress(function (e) {
