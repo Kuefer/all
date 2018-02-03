@@ -917,6 +917,7 @@ function button_event_save_submit ($form, &$form_state) {
   
   if ($starts > $ends) return drupal_set_message(t('Endtime must be biger than start time'), 'error');
   #$change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
+  $change_only = 0;
   $value = array('starts' => $starts, 'ends' => $ends);
   $value['type'] = (empty($form_values['nhus']['field']['type'])? 'None': $form_values['nhus']['field']['type']);
   $value['summary'] = (empty($form_values['title']['field']['text'])? false: $form_values['title']['field']['text']);
@@ -938,9 +939,7 @@ function button_event_save_submit ($form, &$form_state) {
     $value['ends'] = strtotime(date('Y-m-d', $starts) . ' ' . date('H:i', $ends));
     $value['repeat_end'] = $form_values['end-repeat']['row']['select'];
     if ((int)$form_values['end-repeat']['row']['select'] !== 0) {
-      $value['repeat_end_date'] = strtotime(
-        $form_values['end-repeat']['row']['date']
-      );
+      $value['repeat_end_date'] = strtotime($form_values['end-repeat']['row']['date'] . ' 23:59:59');
       if ($value['repeat_end_date'] < strtotime(date('Y-m-d'))) $value['repeat_end_date'] = $value['ends'];
     }
     else {
@@ -966,7 +965,8 @@ student (Boolean) FALSE
 repeat_end (Boolean) FALSE
 repeat_end_date (Boolean) FALSE
 */
-  #NEW event
+
+  #event NEW
   if ((int)$form_values['hidden']['event-id'] == 0){
     try{
       $vevent = new VObject\Component\VCalendar(array(
@@ -1015,61 +1015,17 @@ repeat_end_date (Boolean) FALSE
     $object->condition('co.id', (int)$form_values['hidden']['event-id']);
     $object = $object->execute()->fetch();
     #get event from db
-    $event = VObject\Reader::read($object->calendardata);
-    #extract EVENT from CALENDAR
-    preg_match("'(.*?)BEGIN:VEVENT'si", $event->serialize(), $beginVcalendar);
-    preg_match("'END:VEVENT(.*?)'si", $event->serialize(), $endVcalendar);
-    preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $event->serialize(), $veventRead);
-    dpm($beginVcalendar);
-    dpm('#--# begin');
-    dpm($veventRead);
-    dpm('#--# read');
-    dpm($endVcalendar);
-    dpm('#--# end');
-    dpm('#--#');
-/*
-BEGIN:VEVENT
-  RRULE:FREQ=WEEKLY;INTERVAL=1;UNTIL=20180216T225959Z
-  SUMMARY:New Event
-  DTEND;TZID=Europe/Berlin:20180202T020000
-  DTSTART;TZID=Europe/Berlin:20180202T010000
-  
-  CREATED:20180202T074153Z
-  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
-  TRANSP:OPAQUE
-  DTSTAMP:20180202T074203Z
-  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-  SEQUENCE:0
-END:VEVENT
+    $revent = VObject\Reader::read($object->calendardata);
 
-BEGIN:VEVENT
-  RECURRENCE-ID;TZID=Europe/Berlin:20180209T010000
-  SUMMARY:New Event edited
-  DTEND;TZID=Europe/Berlin:20180209T020000
-  DTSTART;TZID=Europe/Berlin:20180209T010000
-  
-  CREATED:20180202T074153Z
-  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
-  TRANSP:OPAQUE
-  DTSTAMP:20180202T074247Z
-  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-  SEQUENCE:0
-END:VEVENT
-*/
-    #rebuild event with both VEVENT
+    #create the edited event
     $vevent = new VObject\Component\VCalendar(array(
       'VEVENT' => array(
+        'UID' => (string)$revent->VEVENT->{'UID'},
         'SUMMARY' => $value->summary ,
         'DESCRIPTION' => $value->type ,
         'DTSTART' => new \DateTime(date('Y-m-d H:i:s', $value->starts)), #'2017-09-09 21:00:00'),
         'DTEND'  => new \DateTime(date('Y-m-d H:i:s', $value->ends))
     )));
-    
-    #add new values
-    $vevent->VEVENT->SUMMARY = $value->summary;
-    $vevent->VEVENT->DESCRIPTION = $value->type;
-    $vevent->VEVENT->DTSTART = new \DateTime(date('Y-m-d H:i:s', $value->starts));
-    $vevent->VEVENT->DTEND = new \DateTime(date('Y-m-d H:i:s', $value->ends));
 
     #if we have invitees append to event
     if($value->student){
@@ -1100,25 +1056,122 @@ END:VEVENT
     }
     #is not a repeted event
     #else $vevent->VEVENT->remove('RRULE');
-    preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $vevent->serialize(), $veventNew);
-    /*--------------------------------------*/
-    #(int)$change_only == 1
-    /*--------------------------------------*/
-    dpm($veventNew);
-    dpm('#--# New');
-    #IF IS EDITED A REPEATED EVENT WITH CHECKBOX ONLY THID EVENT EDIT
-    $vevent = $beginVcalendar[1] . "\n" . $veventRead[0] . "\n\n" . $veventNew[0] . "\n" . 'END:VCALENDAR';
 
-return dpm($vevent);
-    #if changes the group, delete (does't work otherway with ical) the old event and create a new one
-    if($object->calendarid !== $value->calendarid){
-      $CalDAV->deleteCalendarObject(array($object->calendarid,0), $object->uri);
-      $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $vevent->serialize());
+/*
+BEGIN:VEVENT
+  RRULE:FREQ=WEEKLY;INTERVAL=1;UNTIL=20180216T225959Z
+  SUMMARY:New Event
+  DTEND;TZID=Europe/Berlin:20180202T020000
+  DTSTART;TZID=Europe/Berlin:20180202T010000
+  
+  CREATED:20180202T074153Z
+  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
+  TRANSP:OPAQUE
+  DTSTAMP:20180202T074203Z
+  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+  SEQUENCE:0
+END:VEVENT
+
+BEGIN:VEVENT
+  RECURRENCE-ID;TZID=Europe/Berlin:20180209T010000
+  SUMMARY:New Event edited
+  DTEND;TZID=Europe/Berlin:20180209T020000
+  DTSTART;TZID=Europe/Berlin:20180209T010000
+  
+  CREATED:20180202T074153Z
+  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
+  TRANSP:OPAQUE
+  DTSTAMP:20180202T074247Z
+  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+  SEQUENCE:0
+END:VEVENT
+
+
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Apple Inc.//Mac OS X 10.11.6//EN
+CALSCALE:GREGORIAN
+BEGIN:VTIMEZONE
+TZID:Europe/Berlin
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+DTSTART:19810329T020000
+TZNAME:GMT+2
+TZOFFSETTO:+0200
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+DTSTART:19961027T030000
+TZNAME:GMT+1
+TZOFFSETTO:+0100
+END:STANDARD
+END:VTIMEZONE
+
+BEGIN:VEVENT
+TRANSP:OPAQUE
+DTEND;TZID=Europe/Berlin:20180203T063000
+UID:sabre-vobject-1d969108-bc98-478b-b32f-f3864b2a468d
+DTSTAMP:20180203T123234Z
+DESCRIPTION:None
+SEQUENCE:0
+SUMMARY:qw
+DTSTART;TZID=Europe/Berlin:20180203T041500
+X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+CREATED:20180203T123134Z
+RRULE:FREQ=WEEKLY;INTERVAL=1
+END:VEVENT
+
+BEGIN:VEVENT
+CREATED:20180203T123134Z
+UID:sabre-vobject-1d969108-bc98-478b-b32f-f3864b2a468d
+DTEND;TZID=Europe/Berlin:20180203T063000
+RECURRENCE-ID;TZID=Europe/Berlin:20180203T041500
+TRANSP:OPAQUE
+X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+SUMMARY:qw 2
+DTSTART;TZID=Europe/Berlin:20180203T041500
+DTSTAMP:20180203T123311Z
+SEQUENCE:0
+DESCRIPTION:None
+END:VEVENT
+
+END:VCALENDAR
+
+*/
+    
+    #change only this event
+    if((int)$change_only === 1){
+      #extract EVENT from readed CALENDAR
+      $event = preg_split("/(BEGIN:VEVENT)/", $revent->serialize(), -1, PREG_SPLIT_OFFSET_CAPTURE);
+
+      #get only the event from new (edited one) calendar
+      preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $vevent->serialize(), $veventEdited);
+
+      $allConcat = (string)$event[0][0] . "\n" . $veventEdited[0];
+      foreach($event as $i => $vcalendar) {
+        if($i == 0 || $i == 1) continue;
+        $allConcat .= "\n\nBEGIN:VEVENT" . (string)$vcalendar[0];
+      }
+      $allConcat .= "\nBEGIN:VEVENT" . (string)$event[1][0];
+    } 
+    #change all the repeated events
+    else {
+      $allConcat = $vevent->serialize();
     }
-    #make changes to db with new values added to event object
-    else{
-      $response = $CalDAV->updateCalendarObject(array($object->calendarid,1), $object->uri, $vevent->serialize());
-    }
+    /*--------------------------------------*/
+
+      #if changes the group, delete (does't work otherway with ical) the old event and create a new one
+      if($object->calendarid !== $value->calendarid){
+        $CalDAV->deleteCalendarObject(array($object->calendarid,0), $object->uri);
+        $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $allConcat);
+      }
+      #make changes to db with new values added to event object
+      else{
+        $response = $CalDAV->updateCalendarObject(array($object->calendarid,1), $object->uri, $allConcat);
+      }
+    /*--------------------------------------*/
 
     unset($_SESSION['calendar']);
     if(!empty($response)) return drupal_set_message(t('Event saved successfully'), 'status flash');
@@ -1231,6 +1284,17 @@ function events_block () {
     );
 //----------------------------------------------------
 //----------------------------------------------------
+  /*
+    $form['event']['change-only']['row']['checkbox'] = array(
+        '#title' => t('Change only this event.'),
+        '#type' => 'checkbox',
+        '#id' => 'event-change-only',
+        '#checked' => true,
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
+    );
+    */
+//----------------------------------------------------
     $form['event']['repeat']['row']['select'] = array(
         '#type' => 'select',
         '#title' => 'Repeat',
@@ -1254,7 +1318,6 @@ function events_block () {
         ),
     );
   //----------------------------------------------------
-  //----------------------------------------------------
     $form['event']['end-repeat']['row']['date'] = array(
         '#title' => t('End repeat date'),
         '#type' => 'textfield',
@@ -1264,18 +1327,11 @@ function events_block () {
         '#states' => array(
             'invisible' => array(
                 'select[name="event[end-repeat][row][select]"]' => array('value' => '0'),
+                #'select[name="event[repeat][row][select]"]' => array('value' => '0')
             )
         ),
     );
 //----------------------------------------------------
-//----------------------------------------------------
-    $form['event']['change-only']['row']['checkbox'] = array(
-        '#title' => t('Change only this event.'),
-        '#type' => 'checkbox',
-        '#id' => 'event-change-only',
-        '#prefix' => '<tr><td><br>',
-        '#suffix' => '<br></td></tr>'
-    );
 //----------------------------------------------------
 	$form['event']['student']['header']['title'] = array(
 		'#markup' => '<tr><td><label for="event-students">' . t('Student') . '</label></td></tr>'

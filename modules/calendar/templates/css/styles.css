@@ -729,7 +729,10 @@ select#event-group-select.form-select {
 }
 div#ui-datepicker-div.ui-datepicker.ui-widget.ui-widget-content.ui-helper-clearfix.ui-corner-all {
   font-size:14px;
-  font-family: inherit;
+  font-family:inherit;
+}
+div.form-item.form-type-checkbox.form-item-event-change-only-row-checkbox {
+  margin: 10px 0 !important;
 }
 /* end stuff */
 /*---------------------------------------------------------------------------*/
