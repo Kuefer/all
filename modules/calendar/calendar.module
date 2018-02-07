@@ -468,7 +468,7 @@ function calendar_form ($form, &$form_state) {
 //----------------------------------------------------
   $form['date-print'] = array(
     '#type' => 'markup',
-    '#markup' => '<span id="calendar-date-title-print" style="display:none;">' . date('l, j F Y', $date) . '</span>',
+    '#markup' => '<span id="calendar-date-title-print" style="display:none;">' . date('l, j. F Y', $date) . '</span>',
   );
 //----------------------------------------------------
   $form['all-day'] = array (
@@ -642,6 +642,27 @@ function calendar_form ($form, &$form_state) {
         //----------------------------------------------------
       } //end for minutes
   } //end foreach hours
+//----------------------------------------------------
+//----------------------------------------------------
+  $form['events-list'] = array (
+    '#type' => 'container',
+      '#prefix' => '<table class="events-list">',
+      '#suffix' => '</table>',
+  );
+  $form['events-list']['row'] = array (
+    '#prefix' => '<tr class="table-row">',
+    '#suffix' => '</tr>'
+);
+$form['events-list']['row']['header'] = array (
+    '#markup' => '<th class=""></th>',
+);
+$form['events-list']['row']['container'] = array (
+    '#prefix' => '<td class="table-cell">',
+    '#suffix' => '</td>'
+);
+$form['events-list']['row']['container']['holidays'] = array (
+    '#markup' => 'ok'
+);
 //----------------------------------------------------
   return $form;
 }
