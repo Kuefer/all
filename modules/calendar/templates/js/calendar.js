@@ -458,17 +458,18 @@
     if (isNaN(time)) return true;
     if (starts.getTime() === ends.getTime()) {
       if (parseInt(startMin) === 45) {
-        $('#event-ends-hour').val(parseInt(startHour) + 1);
+        $('#event-ends-hour').val(('0' + (parseInt(startHour) + 1).toString()).slice(-2));
         $('#event-ends-minute').val('00');
       }
-      else $('#event-ends-minute').val(parseInt(startMin) + 15);
-      return true;
+      else {
+        $('#event-ends-minute').val(parseInt(startMin) + 15);
+      }
     }
     if (starts.getTime() > ends.getTime()) {
       $('#event-ends-date').val($('#event-starts-date').val());
-      $('#event-ends-hour').val(parseInt(startHour) + 1);
-      return true;
+      $('#event-ends-hour').val(('0' + (parseInt(startHour) + 1).toString()).slice(-2));
     }
+    return true;
     //alert('End date and time must have a bigger value.');
   };
 //----------------

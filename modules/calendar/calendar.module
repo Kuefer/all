@@ -260,12 +260,18 @@ function calendar_session () {
     $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
     array_push($principals, $calendars);
   }
-
+/*
+<C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:time-range start=\"$start\" end=\"$finish\"/>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+*/
   $events = array();
-  $filter = array(
+  $filters = array(
     'name' => 'VCALENDAR',
-    'is-not-defined' => false,
-    'time-range' => null,
     'prop-filters' => array(),
     'comp-filters' => array(
       array(
@@ -273,19 +279,20 @@ function calendar_session () {
         'is-not-defined' => false,
         'prop-filters' => array(),
         'comp-filters' => array(),
-        'time-range' => null,
-      ),
-    ),
+        'time-range' => array(
+          'start' => new DateTime(date('Y-m-d', $date) . '00:00:00', null),
+          'end' => new DateTime(date('Y-m-d', $date) . '23:59:59', null),
+        ) 
+      )
+    )
   );
-/*--------------------------*/
-#'start' => new \DateTime(date('Y-m-d', $date) . '00:00:00', null),
-#'end' => new \DateTime(date('Y-m-d', strtotime(date('Y-m-d') . '+ 1day')) . '00:00:00', null),
+
 /*--------------------------*/
   #get every single calendar.
   foreach($principals as $calendars){
     #get events for every calendar.
-    foreach($calendars as  $calendar){
-      $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filter);
+    foreach($calendars as $calendar){
+      $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filters);
       #read event data.
       foreach($icss as $i => $ics){
         $rrule = array();
@@ -303,7 +310,7 @@ function calendar_session () {
         $start = strtotime((string) $data->VEVENT->DTSTART);
         $end = strtotime((string) $data->VEVENT->DTEND);
       
-        if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
+        #if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
 
         if (isset($rrule['freq'])) {
           #is the same week day?
@@ -311,9 +318,11 @@ function calendar_session () {
           #is repeted event with end date
           if(isset($rrule['until'])) if (strtotime($rrule['until']) < strtotime(date('Y-m-d H:i:s', $date) . '-1 day')) continue;
         }
+        /*
         else{
           if ($end < $date) continue;
         }
+        */
 
         #prepare the key for event to skip looping events later.
         #$key = (string) $data->VEVENT->DTSTART;
@@ -760,10 +769,8 @@ function all_events_form ($form, &$form_state){
     $calendars = $CalDAV->getCalendarsForUser('principals/' . $employee->mail);
     array_push($principals, $calendars);
   }
-  $filter = array(
+  $filters = array(
     'name' => 'VCALENDAR',
-    'is-not-defined' => false,
-    'time-range' => null,
     'prop-filters' => array(),
     'comp-filters' => array(
       array(
@@ -771,16 +778,19 @@ function all_events_form ($form, &$form_state){
         'is-not-defined' => false,
         'prop-filters' => array(),
         'comp-filters' => array(),
-        'time-range' => null,
-      ),
-    ),
+        'time-range' => array(
+          'start' => new DateTime(date('Y-m-d', $date) . '00:00:00', null),
+          'end' => new DateTime(date('Y-m-d', $date) . '23:59:59', null),
+        ) 
+      )
+    )
   );
 
   #get every single calendar.
   foreach($principals as $calendars){
     #get all_events for every calendar.
     foreach($calendars as  $calendar){
-      $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filter);
+      $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filters);
       #read event data.
       foreach($icss as $i => $ics){
         $rrule = array();
@@ -795,20 +805,12 @@ function all_events_form ($form, &$form_state){
           }
         } else $rrule = null;
 
-        #verify date if is today event or between, for repeated all_events.
-        $start = strtotime((string) $data->VEVENT->DTSTART);
-        $end = strtotime((string) $data->VEVENT->DTEND);
-
-        if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
-        if ($end > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
-
         $teacher_name = db_select('dav_calendarinstances', 'dci');
         $teacher_name->fields('dci', array('displayname'));
         $teacher_name->condition('dci.calendarid', $calendar['id'][0]);
         $teacher_name = $teacher_name->execute()->fetch();
 
         array_push($all_events, (object) array(
-        #array_push($all_events, (object) array(
           'id' => $event['id'],
           'calendarid' => $calendar['id'][0],
           'teacher_name' => $teacher_name->displayname,
