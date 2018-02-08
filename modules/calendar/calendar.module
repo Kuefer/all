@@ -643,7 +643,7 @@ function calendar_form ($form, &$form_state) {
             '#markup' => '<style>@media print{
               #edit-day-'.$h.'-container-'.$m.'-event-'.$i.'{
                 background-color:#fff!important;
-                border-left:10px solid '.$event->color.'!important;
+                border-left:14px solid '.$event->color.'!important;
               }
             }</style>
                                   <span class="event-content-hours">' . $titleHours . ' </span><br>
