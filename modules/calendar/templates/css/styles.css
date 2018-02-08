@@ -439,7 +439,7 @@
   margin:0px;
   white-space:nowrap;
   border-left:3px solid lightgray;
-  line-height: 2px;
+  line-height:12px;
 }
 .calendar-day .event .ui-resizable-s {
     cursor: s-resize;
