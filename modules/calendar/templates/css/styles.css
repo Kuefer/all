@@ -424,21 +424,22 @@
 }
 .calendar-day .event {
   font-size:90%;
-  padding-top: 1px;
-  min-height: 15px;
-  max-height: 1300px;
-  background-color: yellowgreen;
-  float: left;
+  padding-top:1px;
+  min-height:15px;
+  max-height:1300px;
+  background-color:yellowgreen;
+  float:left;
   opacity:0.7;
   color:#000;
-  top: 1px;
+  top:1px;
   overflow:hidden;
-  text-overflow: ellipsis;
-  width: 100%;
-  cursor: default;
-  margin: 0px;
-  white-space: nowrap;
-  border-left: 3px solid lightgray;
+  text-overflow:ellipsis;
+  width:100%;
+  cursor:default;
+  margin:0px;
+  white-space:nowrap;
+  border-left:3px solid lightgray;
+  line-height: 2px;
 }
 .calendar-day .event .ui-resizable-s {
     cursor: s-resize;
