@@ -63,4 +63,7 @@
   .events-list tr td{
     padding:10px !important;
   }
+  table.events-list {
+    display:block;
+  }
 }

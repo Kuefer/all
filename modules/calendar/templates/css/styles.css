@@ -743,6 +743,9 @@ span.event-list-color {
   float: left;
   margin-right:10px;
 }
+table.events-list {
+  display:none;
+}
 /* end stuff */
 /*---------------------------------------------------------------------------*/
 /* new student block */
