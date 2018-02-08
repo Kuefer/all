@@ -724,6 +724,7 @@
 }
 select#event-nhus.form-select,
 select#event-repeat.form-select,
+select#event-end-repeat.form-select,
 select#event-group-select.form-select {
   width: 256px;
 }
