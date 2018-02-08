@@ -734,6 +734,15 @@ div#ui-datepicker-div.ui-datepicker.ui-widget.ui-widget-content.ui-helper-clearf
 div.form-item.form-type-checkbox.form-item-event-change-only-row-checkbox {
   margin: 10px 0 !important;
 }
+span.event-list-title {
+  float:left;
+}
+span.event-list-color {
+  height: 17px;
+  width: 27px;
+  float: left;
+  margin-right:10px;
+}
 /* end stuff */
 /*---------------------------------------------------------------------------*/
 /* new student block */

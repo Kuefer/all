@@ -653,25 +653,44 @@ function calendar_form ($form, &$form_state) {
   } //end foreach hours
 //----------------------------------------------------
 //----------------------------------------------------
+ $result = array(); 
+  foreach ($events as $j) {
+    foreach ($j as $i => $event) {
+      array_push($result, $event); 
+    }
+  }
   $form['events-list'] = array (
     '#type' => 'container',
       '#prefix' => '<table class="events-list">',
       '#suffix' => '</table>',
   );
-  $form['events-list']['row'] = array (
-    '#prefix' => '<tr class="table-row">',
-    '#suffix' => '</tr>'
-);
-$form['events-list']['row']['header'] = array (
-    '#markup' => '<th class=""></th>',
-);
-$form['events-list']['row']['container'] = array (
-    '#prefix' => '<td class="table-cell">',
-    '#suffix' => '</td>'
-);
-$form['events-list']['row']['container']['holidays'] = array (
-    '#markup' => 'ok'
-);
+  foreach ($result as $i => $event) {
+    $title = (!empty($event->class)? 'K' . $event->class: '')
+      . (!empty($event->schultyp)? substr($event->schultyp, 0, 1): '');
+
+    $titleStudent = (!empty($event->student_name)? ' ' . $event->student_name: '')
+      . (!empty($event->number)? ' ' . implode('-',str_split($event->number, 4)): '');
+
+    $form['events-list']['row'][$i] = array (
+      '#prefix' => '<tr class="table-row">',
+      '#suffix' => '</tr>'
+    );
+    $form['events-list']['row'][$i]['container'] = array (
+      '#prefix' => '<td class="table-cell">',
+      '#suffix' => '</td>'
+    );
+    $form['events-list']['row'][$i]['container']['event'] = array (
+      '#markup' => '<span class="event-list-color" style="background-color:'.$event->color.';"></span>' . 
+      '<p class="event-list-title">'. 
+        date('H:i:s', $event->start) . ' to ' .
+        date('H:i:s', $event->end) . ' ' .
+        $event->description . ' ' .
+        $title . ' ' .
+        $titleStudent . 
+      '</p>'
+    );
+  }
+
 //----------------------------------------------------
   return $form;
 }
@@ -779,8 +798,10 @@ function all_events_form ($form, &$form_state){
         'prop-filters' => array(),
         'comp-filters' => array(),
         'time-range' => array(
-          'start' => new DateTime(date('Y-m-d', $date) . '00:00:00', null),
-          'end' => new DateTime(date('Y-m-d', $date) . '23:59:59', null),
+          'start' => '',
+          'end' => ''
+          #'start' => new DateTime(date('Y-m-d', $date) . '00:00:00', null),
+          #'end' => new DateTime(date('Y-m-d', $date) . '23:59:59', null),
         ) 
       )
     )
@@ -793,6 +814,7 @@ function all_events_form ($form, &$form_state){
       $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filters);
       #read event data.
       foreach($icss as $i => $ics){
+        if ($i === 20) break;
         $rrule = array();
         $event = $CalDAV->getCalendarObject(array($calendar['id'][0],0), $ics);
         $data = VObject\Reader::read($event['calendardata']);
