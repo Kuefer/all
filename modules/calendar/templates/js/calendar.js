@@ -313,8 +313,8 @@
 //----------------
     $('#event-starts-hour, #event-starts-minute, #event-ends-hour, #event-ends-minute').change(function () {
       var event = $('.focused');
-      $(document).setDomEvent(event);
       $(this).validateDate();
+      $(document).setDomEvent(event);
     });
 //----------------
     $('.groups-block tr').mouseover(function () {
