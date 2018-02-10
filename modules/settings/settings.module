@@ -58,7 +58,6 @@ function form_back ($form, &$form_state) {
 function general_form_submit ($form, &$form_state) {
   global $user;
   $fields = array();
-  $fields['scroll'] = $form_state['values']['settings']['scroll'];
   $fields['mode'] = $form_state['values']['settings']['mode'];
   $fields['start'] = $form_state['values']['settings']['start'];
   $fields['duration'] = $form_state['values']['settings']['duration'];
@@ -71,7 +70,6 @@ function general_form_submit ($form, &$form_state) {
   drupal_add_js(array('calendar' => array(
     'duration' => $fields['duration'],
     'start' => $fields['start'],
-    'scroll' => $fields['scroll']
   )), array('type' => 'setting'));
 
   return drupal_goto('calendar/');
