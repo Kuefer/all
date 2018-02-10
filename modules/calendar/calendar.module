@@ -189,7 +189,6 @@ function calendar_session () {
     $settings['duration'] = 15;
     $settings['start'] = 12;
     $settings['mode'] = 1;
-    $settings['scroll'] = 0;
     $query = db_insert('nachhilfe_settings');
     $query->fields(array_keys($settings));
     $query->values($settings);
@@ -200,7 +199,6 @@ function calendar_session () {
   /* Add JS --------------------------------------------------------- */
   $duration = $settings->duration - 4;
   drupal_add_js(array('calendar' => array(
-    'scroll' => $settings->scroll,
     'start' => sprintf("%02d", $settings->start),
     'duration' => $duration . 'px',
     'date' => date('Y-n-j', $date),
@@ -640,12 +638,7 @@ function calendar_form ($form, &$form_state) {
           );
           $form['day'][$h]['container'][$m]['event'][$i]['content'] = array (
             '#type' => 'markup',
-            '#markup' => '<style>@media print{
-              #edit-day-'.$h.'-container-'.$m.'-event-'.$i.'{
-                background-color:#fff!important;
-                border-left:14px solid '.$event->color.'!important;
-              }
-            }</style>
+            '#markup' => '<style>@media print{#edit-day-'.$h.'-container-'.$m.'-event-'.$i.'{background-color:#fff!important;border-left:14px solid '.$event->color.'!important;}}</style>
                                   <span class="event-content-hours">' . $titleHours . ' </span><br>
                                   <span class="event-content-student">' . $titleStudent . ' </span><br>
                                   <span class="event-content-title">' . $title . ' </span>'
@@ -1200,11 +1193,16 @@ END:VCALENDAR
       #get only the event from new (edited one) calendar
       preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $vevent->serialize(), $veventEdited);
 
+      #add VCALENDAR begin and edited new event
       $allConcat = (string)$event[0][0] . "\n" . $veventEdited[0];
+
+      #add others event and changes
       foreach($event as $i => $vcalendar) {
         if($i == 0 || $i == 1) continue;
         $allConcat .= "\n\nBEGIN:VEVENT" . (string)$vcalendar[0];
       }
+
+      #add VCALENDAR end
       $allConcat .= "\nBEGIN:VEVENT" . (string)$event[1][0];
     } 
     #change all the repeated events

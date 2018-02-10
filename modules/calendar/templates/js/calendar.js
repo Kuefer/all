@@ -129,14 +129,7 @@
       $('.region-sidebar-right .block').hide();
     });
 //----------------
-    if (Drupal.settings.calendar) {
-      if (Drupal.settings.calendar.scroll !== '0') {
-        $('html, body').animate({
-          scrollTop: $('tr[data-hour="d' + Drupal.settings.calendar.start + '"]').offset().top - 64
-        }, 900);
-      }
-    }
-
+    /*
     $(document).bind('scroll', 'html', function (event) {
       var wrap = $('#view-calendar');
       if ($(this).scrollTop() > 130) {
@@ -148,6 +141,7 @@
         $('#calendar-date-title').css('padding-left', 0);
       }
     });
+    */
     /*--------------------------------------------------------*/
     $(document).mouseup(function (event) {
       if ($('.color-groups-options:visible').length !== 0) {

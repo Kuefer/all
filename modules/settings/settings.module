@@ -111,17 +111,6 @@ function general_form ($form, &$form_state) {
       ),
     ),
   );
-  $form['settings']['scroll'] = array(
-    '#type' => 'select',
-    '#title' => t('Scroll automatic:'),
-    '#options' => array('No', 'Yes'),
-    '#default_value' => $settings->scroll,
-    /*'#states' => array(
-      'disabled' => array(
-        'select[name="settings[mode]"]' => array('value' => '1'),
-      ),
-    ),*/
-  );
   $form['settings']['duration'] = array(
     '#type' => 'select',
     '#title' => t('Default event duration:'),
@@ -168,10 +157,6 @@ function caldav_form ($form, &$form_state) {
     '#collapsed' => false,
     '#prefix' => '<div class="new-caldav">',
     '#suffix' => '</div>',
-  );
-  $form['new']['p'] = array(
-    '#title' => 'markup',
-    '#markup' => '<p>Copy and past the next credentials</p>',
   );
   $form['new']['user'] = array(
     '#title' => t('User'),
