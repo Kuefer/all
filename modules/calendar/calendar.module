@@ -284,7 +284,6 @@ function calendar_session () {
       )
     )
   );
-
 /*--------------------------*/
   #get every single calendar.
   foreach($principals as $calendars){
@@ -295,61 +294,63 @@ function calendar_session () {
       foreach($icss as $i => $ics){
         $rrule = array();
         $event = $CalDAV->getCalendarObject(array($calendar['id'][0],0), $ics);
-        $data = VObject\Reader::read($event['calendardata']);
-        #is a repeted event? (verify first while the repeat date is here).
-        if(!empty((string) $data->VEVENT->RRULE)){
-          foreach(explode(';', (string) $data->VEVENT->RRULE) as $rule){
-            $a = explode('=', $rule);
-            $rrule[strtolower($a[0])] = $a[1];
+        $vcalendar = VObject\Reader::read($event['calendardata']);
+
+        foreach($vcalendar->VEVENT as  $i => $data) {
+          #is a repeted event? (verify first while the repeat date is here).
+          if(!empty((string) $data->RRULE)){
+            foreach(explode(';', (string) $data->RRULE) as $rule){
+              $a = explode('=', $rule);
+              $rrule[strtolower($a[0])] = $a[1];
+            }
+          } else $rrule = null;
+
+          #verify date if is today event or between, for repeated events.
+          $start = strtotime((string) $data->DTSTART);
+          $end = strtotime((string) $data->DTEND);
+
+          #if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
+
+          if (isset($rrule['freq'])) {
+            #is the same week day?
+            if (date('w', $start) !== date('w', strtotime(date('Y-m-d', $date)))) continue;
+            #is repeted event with end date
+            if(isset($rrule['until'])) if (strtotime($rrule['until']) < strtotime(date('Y-m-d H:i:s', $date) . '-1 day')) continue;
           }
-        } else $rrule = null;
+          /*
+          else{
+            if ($end < $date) continue;
+          }
+          */
+          #prepare the key for event to skip looping events later.
+          #$key = (string) $data->DTSTART;
+          $key = date('Ymd\THis', strtotime(date('Y-m-d', $date)
+                                            . ' ' . date('H:i:s', strtotime((string) $data->DTSTART))));
+          if(!array_key_exists($key, $events)) $events[$key] = array();
 
-        #verify date if is today event or between, for repeated events.
-        $start = strtotime((string) $data->VEVENT->DTSTART);
-        $end = strtotime((string) $data->VEVENT->DTEND);
-      
-        #if ($start > strtotime(date('Y-m-d H:i:s', $date) . '+1 day')) continue;
+          $teacher_name = db_select('dav_calendarinstances', 'dci');
+          $teacher_name->fields('dci', array('displayname'));
+          $teacher_name->condition('dci.calendarid', $calendar['id'][0]);
+          $teacher_name = $teacher_name->execute()->fetch();
 
-        if (isset($rrule['freq'])) {
-          #is the same week day?
-          if (date('w', $start) !== date('w', strtotime(date('Y-m-d', $date)))) continue;
-          #is repeted event with end date
-          if(isset($rrule['until'])) if (strtotime($rrule['until']) < strtotime(date('Y-m-d H:i:s', $date) . '-1 day')) continue;
+          array_push($events[$key], (object) array(
+          #array_push($events, (object) array(
+            'id' => $event['id'],
+            'calendarid' => $calendar['id'][0],
+            'teacher_name' => $teacher_name->displayname,
+            'color' => $calendar['{http://apple.com/ns/ical/}calendar-color'],
+            'uri' => $event['uri'],
+            'uid' => (string) $data->UID,
+            'start' => strtotime((string) $data->DTSTART),
+            'end' => strtotime((string) $data->DTEND),
+            'summary' => (string) $data->SUMMARY,
+            'description' => (string) $data->DESCRIPTION,
+            'rrule' => $rrule,
+            'student_id' => (string) $data->ATTENDEE['ID'],
+            'student_name' => (string) $data->ATTENDEE['CN'],
+            'student_mail' => (string) $data->ATTENDEE['EMAIL']
+          ));
         }
-        /*
-        else{
-          if ($end < $date) continue;
-        }
-        */
-
-        #prepare the key for event to skip looping events later.
-        #$key = (string) $data->VEVENT->DTSTART;
-        $key = date('Ymd\THis', strtotime(date('Y-m-d', $date)
-                                          . ' ' . date('H:i:s', strtotime((string) $data->VEVENT->DTSTART))));
-        if(!array_key_exists($key, $events)) $events[$key] = array();
-
-        $teacher_name = db_select('dav_calendarinstances', 'dci');
-        $teacher_name->fields('dci', array('displayname'));
-        $teacher_name->condition('dci.calendarid', $calendar['id'][0]);
-        $teacher_name = $teacher_name->execute()->fetch();
-
-        array_push($events[$key], (object) array(
-        #array_push($events, (object) array(
-          'id' => $event['id'],
-          'calendarid' => $calendar['id'][0],
-          'teacher_name' => $teacher_name->displayname,
-          'color' => $calendar['{http://apple.com/ns/ical/}calendar-color'],
-          'uri' => $event['uri'],
-          'uid' => (string) $data->VEVENT->UID,
-          'start' => strtotime((string) $data->VEVENT->DTSTART),
-          'end' => strtotime((string) $data->VEVENT->DTEND),
-          'summary' => (string) $data->VEVENT->SUMMARY,
-          'description' => (string) $data->VEVENT->DESCRIPTION,
-          'rrule' => $rrule,
-          'student_id' => (string) $data->VEVENT->ATTENDEE['ID'],
-          'student_name' => (string) $data->VEVENT->ATTENDEE['CN'],
-          'student_mail' => (string) $data->VEVENT->ATTENDEE['EMAIL']
-        ));
       }
     }
   }
@@ -960,8 +961,8 @@ function button_event_save_submit ($form, &$form_state) {
   );
   
   if ($starts > $ends) return drupal_set_message(t('Endtime must be biger than start time'), 'error');
-  #$change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
-  $change_only = 0;
+  $change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
+  #$change_only = 0;
   $value = array('starts' => $starts, 'ends' => $ends);
   $value['type'] = (empty($form_values['nhus']['field']['type'])? 'None': $form_values['nhus']['field']['type']);
   $value['summary'] = (empty($form_values['title']['field']['text'])? false: $form_values['title']['field']['text']);
@@ -1137,6 +1138,7 @@ PRODID:-//Apple Inc.//Mac OS X 10.11.6//EN
 CALSCALE:GREGORIAN
 BEGIN:VTIMEZONE
 TZID:Europe/Berlin
+
 BEGIN:DAYLIGHT
 TZOFFSETFROM:+0100
 RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
@@ -1144,6 +1146,7 @@ DTSTART:19810329T020000
 TZNAME:GMT+2
 TZOFFSETTO:+0200
 END:DAYLIGHT
+
 BEGIN:STANDARD
 TZOFFSETFROM:+0200
 RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
@@ -1189,12 +1192,12 @@ END:VCALENDAR
     if((int)$change_only === 1){
       #extract EVENT from readed CALENDAR
       $event = preg_split("/(BEGIN:VEVENT)/", $revent->serialize(), -1, PREG_SPLIT_OFFSET_CAPTURE);
-
+      #RECURRENCE-ID for edited event
+      $vevent->VEVENT->add('RECURRENCE-ID', new \DateTime(date('Y-m-d H:i:s', $value->starts)));
       #get only the event from new (edited one) calendar
-      preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $vevent->serialize(), $veventEdited);
-
+      preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $vevent->serialize(), $vevent);
       #add VCALENDAR begin and edited new event
-      $allConcat = (string)$event[0][0] . "\n" . $veventEdited[0];
+      $allConcat = (string)$event[0][0] . "\n" . $vevent[0];
 
       #add others event and changes
       foreach($event as $i => $vcalendar) {
@@ -1333,17 +1336,6 @@ function events_block () {
     );
 //----------------------------------------------------
 //----------------------------------------------------
-  /*
-    $form['event']['change-only']['row']['checkbox'] = array(
-        '#title' => t('Change only this event.'),
-        '#type' => 'checkbox',
-        '#id' => 'event-change-only',
-        '#checked' => true,
-        '#prefix' => '<tr><td>',
-        '#suffix' => '</td></tr>',
-    );
-    */
-//----------------------------------------------------
     $form['event']['repeat']['row']['select'] = array(
         '#type' => 'select',
         '#title' => 'Repeat',
@@ -1351,6 +1343,15 @@ function events_block () {
         '#prefix' => '<tr><td>',
         '#suffix' => '</td></tr>',
         '#options' => array('None', 'Every Week')
+    );
+//----------------------------------------------------
+    $form['event']['change-only']['row']['checkbox'] = array(
+        '#title' => t('Change only this event.'),
+        '#type' => 'checkbox',
+        '#id' => 'event-change-only',
+        '#checked' => true,
+        '#prefix' => '<tr><td>',
+        '#suffix' => '</td></tr>',
     );
 //----------------------------------------------------
     $form['event']['end-repeat']['row']['select'] = array(
