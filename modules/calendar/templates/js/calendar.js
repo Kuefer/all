@@ -65,7 +65,7 @@
     $('#event-group-select').val(group);
     //$('.page-right').show();
     $('#block-calendar-events').show().siblings().hide();
-    $('#event-end-repeat-date').val(parseInt(d.getDate(), 10) +'/'+ parseInt(d.getMonth() + 1, 10) +'/'+ d.getFullYear());
+    $('#event-end-repeat-date').val(('0' + parseInt(d.getDate(), 10)).slice(-2) +'-'+ ('0' + parseInt(d.getMonth() + 1, 10)).slice(-2) +'-'+ d.getFullYear());
     //$('#event-end-repeat-date-month').val();
     //$('#event-end-repeat-date-day').val();
 
@@ -188,7 +188,7 @@
     $('#event-repeat').val(event.repeat_event).change();
     $('#event-end-repeat').val(event.repeat_end).change();
     if (repeat_date !== null) {
-      $('#event-end-repeat-date').val(parseInt(repeat_date[2], 10) +'/'+ parseInt(repeat_date[1], 10) +'/'+ repeat_date[0]);
+      $('#event-end-repeat-date').val(parseInt(repeat_date[2], 10) +'-'+ parseInt(repeat_date[1], 10) +'-'+ repeat_date[0]);
       //$('#event-end-repeat-date-month').val();
       //$('#event-end-repeat-date-day').val();
     }

@@ -290,6 +290,7 @@ function calendar_session () {
     #get events for every calendar.
     foreach($calendars as $calendar){
       $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filters);
+      #if($calendar['id'][0] == 59) dpm($icss);
       #read event data.
       foreach($icss as $i => $ics){
         $rrule = array();
@@ -304,7 +305,16 @@ function calendar_session () {
               $rrule[strtolower($a[0])] = $a[1];
             }
           } else $rrule = null;
+/*
+RECURRENCE-ID = start date of repeated event
+if [session] vobject id; recurrence datetime == datetime start of repeated event => recurrence event
+array vobject id 
 
+          $newVCalendar = $vcalendar->expand(new DateTime((string)$data->DTSTART), new DateTime((string)$data->DTEND));
+          foreach($vcalendar->VEVENT as  $i => $data) {
+            dpm((string) $data->DTSTART);
+          }
+*/
           #verify date if is today event or between, for repeated events.
           $start = strtotime((string) $data->DTSTART);
           $end = strtotime((string) $data->DTEND);
@@ -322,6 +332,7 @@ function calendar_session () {
             if ($end < $date) continue;
           }
           */
+          
           #prepare the key for event to skip looping events later.
           #$key = (string) $data->DTSTART;
           $key = date('Ymd\THis', strtotime(date('Y-m-d', $date)
@@ -961,8 +972,8 @@ function button_event_save_submit ($form, &$form_state) {
   );
   
   if ($starts > $ends) return drupal_set_message(t('Endtime must be biger than start time'), 'error');
-  $change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
-  #$change_only = 0;
+  #$change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
+  $change_only = 0;
   $value = array('starts' => $starts, 'ends' => $ends);
   $value['type'] = (empty($form_values['nhus']['field']['type'])? 'None': $form_values['nhus']['field']['type']);
   $value['summary'] = (empty($form_values['title']['field']['text'])? false: $form_values['title']['field']['text']);
@@ -1345,6 +1356,7 @@ function events_block () {
         '#options' => array('None', 'Every Week')
     );
 //----------------------------------------------------
+  /*
     $form['event']['change-only']['row']['checkbox'] = array(
         '#title' => t('Change only this event.'),
         '#type' => 'checkbox',
@@ -1353,6 +1365,7 @@ function events_block () {
         '#prefix' => '<tr><td>',
         '#suffix' => '</td></tr>',
     );
+    */
 //----------------------------------------------------
     $form['event']['end-repeat']['row']['select'] = array(
         '#type' => 'select',
