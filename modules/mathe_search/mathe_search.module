@@ -123,11 +123,10 @@ function mathe_advanced_form($form, &$form_state, $url = false) {
   return $form;
 }
 //----------------------------------------------------------------------------
-function mathe_search_results_form($form, &$form_state, $string = false) {
+function mathe_search_results_form($form, &$form_state, $land = false) {
   global $user;
-  if(empty($string)) return false;
+  if(empty($land)) return false;
   $result = array();
-  $land = $string;
   $land = str_replace(' ', '%', $land);
   #who is the franchisetaker?
   $query = db_query("SELECT nr.franchisetaker as uid
@@ -281,7 +280,6 @@ END:VEVENT
   );
   $filter_mail['comp-filters'][0]['prop-filters'][0]['text-match']['value'] = $land;
 
-
   $filter_name = $filter_mail;
   $filter_name['comp-filters'][0]['prop-filters'][0]['text-match'] = null;
   $filter_name['comp-filters'][0]['prop-filters'][0]['param-filters'] = array(
@@ -328,7 +326,6 @@ END:VEVENT
   foreach($filters as $filter){
     
     $query_result = _query_events($filter, $principals, $CalDAV);
-    #dpm($query_result);
     if(empty($query_result)) continue;
     foreach($query_result as $data){
       array_push($events,(object) array(
@@ -344,20 +341,14 @@ END:VEVENT
   #$events = array();
   if(!empty($events)){
     foreach($events as $i => $event){
-      $build['wrap']['event'][$i] = array(
-        '#type' => 'markup',
-        '#markup' => '<div class="search-result">'
-        . '<a href="/calendar/' . date('Y/m/d', $event->starts) . '"><span class="search-type">Event ' . (!empty($event->title) ? (strlen($event->title) > 50 ? substr($event->title,0,50)."..." : $event->title ) : 'none') . ' - ' . date('d F Y', $event->starts) .  '</span></a>'
-        . '<br>'
-        . '<span class="search-title">'. substr($event->title,0,50) . ' ' . date('d/m/Y', $event->starts) . ' - ' . date('d/m/Y', $event->ends) . '&nbsp; ' . (!empty($event->student_name)? $event->student_name : '') . '</span> '
-        /*
-        . '<span class="search-title">Teacher: ' . $event->teacher_firstname  . '&nbsp;' . $event->teacher_lastname . ',&nbsp;</span>'
-        */
-        .'</div>'
-      );
+      array_push($result, array(
+          'Event',
+          '<a href="/calendar/' . date('Y/m/d', $event->starts) . '"><span class="search-type">Event ' . (!empty($event->title) ? (strlen($event->title) > 50 ? substr($event->title,0,50)."..." : $event->title ) : 'none') . ' - ' . date('d F Y', $event->starts) .  '</span></a>',
+        '<span class="search-title">'. substr($event->title,0,50) . ' ' . date('d/m/Y', $event->starts) . ' - ' . date('d/m/Y', $event->ends) . '&nbsp; ' . (!empty($event->student_name)? $event->student_name : '') . '</span> '
+      ));
     }
   }
-
+  
   #employees
   $query = db_query("SELECT
         ne.uid, ne.firstname, ne.lastname, ne.street, ne.city, np.number,
@@ -385,17 +376,14 @@ END:VEVENT
 
   if(!empty($employees)){
     foreach($employees as $i => $employee){
-      $build['wrap']['employee'][$i] = array(
-        '#type' => 'markup',
-        '#markup' => '<div class="search-result">'
-        . '<a href="/profile/' . $employee->uid . '"><span class="search-type">' . $employee->firstname . ' ' . $employee->lastname . ' - ' . $employee->city . '</span></a>'
-          . '<br>'
-          . '<span class="search-title">' . $employee->firstname . ' ' . $employee->lastname . ',&nbsp;</span>'
+      array_push($result, array(
+          'Employee',
+          '<a href="/profile/' . $employee->uid . '"><span class="search-type">' . $employee->firstname . ' ' . $employee->lastname . ' - ' . $employee->city . '</span></a>',
+          '<span class="search-title">' . $employee->firstname . ' ' . $employee->lastname . ',&nbsp;</span>'
           . '<span class="search-title">' . implode('-',str_split($employee->number, 4)) . ',&nbsp;</span>'
           . '<span class="search-title">' . $employee->street . ',&nbsp;</span>'
           . '<span class="search-title">' . $employee->city . '</span>'
-        . '</div>'
-      );
+      ));
     }
   }
   
@@ -426,29 +414,56 @@ END:VEVENT
 
   if(!empty($students)){
     foreach($students as $i => $student){
-      $build['wrap']['students'][$i] = array(
-        '#type' => 'markup',
-        '#markup' => '<div class="search-result">'
-        . '<a href="/profile/' . $student->uid . '"><span class="search-type">' . $student->firstname . ' ' . $student->lastname . ' - ' . $student->city . '</span></a>'
-          . '<br>'
-          . '<span class="search-title">' . $student->firstname . ' ' . $student->lastname . ',&nbsp;</span>'
+      array_push($result, array(
+          'Student',
+          '<a href="/profile/' . $student->uid . '"><span class="search-type">' . $student->firstname . ' ' . $student->lastname . ' - ' . $student->city . '</span></a>',
+          '<span class="search-title">' . $student->firstname . ' ' . $student->lastname . ',&nbsp;</span>'
           . '<span class="search-title">' . implode('-',str_split($student->number, 4)) . ',&nbsp;</span>'
           . '<span class="search-title">' . $student->street . ',&nbsp;</span>'
           . '<span class="search-title">' . $student->city . '</span>'
-        . '</div>'
-      );
+      ));
     }
   }
 
-  if (empty($students) && empty($employees) && empty($events)) {
-    #$land
-      $build['wrap']['no-results'] = array(
-        '#type' => 'markup',
-        '#markup' => '<div class="search-result"><p>Your search yielded no results.</p></div>'
-      );
+  if (empty($result)) {
+    $build['wrap']['no-results'] = array(
+      '#type' => 'markup',
+      '#markup' => '<div class="search-result"><p>Your search yielded no results.</p></div>'
+    );
+    return $build;
   }
   
-  return $build;
+  $rows = array();
+  $header = array(
+    array('data' => t('Type')),
+    array('data' => t('Title')),
+    array('data' => t('Description')),
+  );
+
+  // Looping for filling the table rows
+  foreach ($result as $ord) {
+    // Fill the table rows
+    $rows[] = array($ord[0], $ord[1], $ord[2]);
+  }
+
+  $current_page = pager_default_initialize(count($rows), 10);
+  $chunks = array_chunk($rows, 10, TRUE);
+
+  $form['table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $chunks[$current_page],
+    '#attributes' => array (
+      'class' => array('list-results-table table'),
+    )
+  );
+  $form['pager'] = array(
+    '#markup' => theme('pager'),
+    '#quantity' => count($rows)
+  );
+  
+  return $form;
+  
 
 }
 function mathe_advanced_results_form($form, &$form_state, $string = false) {

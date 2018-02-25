@@ -68,7 +68,10 @@ function _dav_calendarserver() {
   $server->addPlugin(new Sabre\CalDAV\Plugin());
   $server->addPlugin(new Sabre\DAVACL\Plugin());
   $server->addPlugin(new Sabre\DAV\Browser\Plugin());
-
+  
+  // debug var
+  $server->debugExceptions = true;
+  
   // And off we go!
   $server->exec();
   exit();
