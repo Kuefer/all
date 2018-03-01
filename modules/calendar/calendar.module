@@ -1072,7 +1072,7 @@ repeat_end_date (Boolean) FALSE
     $object = $object->execute()->fetch();
     #get event from db
     $revent = VObject\Reader::read($object->calendardata);
-  
+    
     #create the edited event
     $vevent = new VObject\Component\VCalendar(array(
       'VEVENT' => array(
@@ -1114,143 +1114,59 @@ repeat_end_date (Boolean) FALSE
     #else $vevent->VEVENT->remove('RRULE');
 
 /*
-BEGIN:VEVENT
-  RRULE:FREQ=WEEKLY;INTERVAL=1;UNTIL=20180216T225959Z
-  SUMMARY:New Event
-  DTEND;TZID=Europe/Berlin:20180202T020000
-  DTSTART;TZID=Europe/Berlin:20180202T010000
-  
-  CREATED:20180202T074153Z
-  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
-  TRANSP:OPAQUE
-  DTSTAMP:20180202T074203Z
-  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-  SEQUENCE:0
-END:VEVENT
-
-BEGIN:VEVENT
-  RECURRENCE-ID;TZID=Europe/Berlin:20180209T010000
-  SUMMARY:New Event edited
-  DTEND;TZID=Europe/Berlin:20180209T020000
-  DTSTART;TZID=Europe/Berlin:20180209T010000
-  
-  CREATED:20180202T074153Z
-  UID:44B94131-E2D6-44DE-BF65-B2B426A01FCA
-  TRANSP:OPAQUE
-  DTSTAMP:20180202T074247Z
-  X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-  SEQUENCE:0
-END:VEVENT
-
-
-BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Apple Inc.//Mac OS X 10.11.6//EN
-CALSCALE:GREGORIAN
-BEGIN:VTIMEZONE
-TZID:Europe/Berlin
-
-BEGIN:DAYLIGHT
-TZOFFSETFROM:+0100
-RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
-DTSTART:19810329T020000
-TZNAME:GMT+2
-TZOFFSETTO:+0200
-END:DAYLIGHT
-
-BEGIN:STANDARD
-TZOFFSETFROM:+0200
-RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
-DTSTART:19961027T030000
-TZNAME:GMT+1
-TZOFFSETTO:+0100
-END:STANDARD
-END:VTIMEZONE
-
-BEGIN:VEVENT
-TRANSP:OPAQUE
-DTEND;TZID=Europe/Berlin:20180203T063000
-UID:sabre-vobject-1d969108-bc98-478b-b32f-f3864b2a468d
-DTSTAMP:20180203T123234Z
-DESCRIPTION:None
-SEQUENCE:0
-SUMMARY:qw
-DTSTART;TZID=Europe/Berlin:20180203T041500
-X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-CREATED:20180203T123134Z
-RRULE:FREQ=WEEKLY;INTERVAL=1
-END:VEVENT
-
-BEGIN:VEVENT
-CREATED:20180203T123134Z
-UID:sabre-vobject-1d969108-bc98-478b-b32f-f3864b2a468d
-DTEND;TZID=Europe/Berlin:20180203T063000
-RECURRENCE-ID;TZID=Europe/Berlin:20180203T041500
-TRANSP:OPAQUE
-X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-SUMMARY:qw 2
-DTSTART;TZID=Europe/Berlin:20180203T041500
-DTSTAMP:20180203T123311Z
-SEQUENCE:0
-DESCRIPTION:None
-END:VEVENT
-
-END:VCALENDAR
-
-foreach($vcalendar->VEVENT as $vevent) { 
-
-   if (!$vevent->isInTimeRange($start, $end)) { 
-       continue; 
-   } 
-   echo $vevent->summary, "\n"; 
-
-} 
-
+foreach($vcalendar->VEVENT as $vevent) {
+   if (!$vevent->isInTimeRange($start, $end)) {
+       continue;
+   }
+   echo $vevent->summary, "\n";
+}
 */
     
     #change only this event
     if((int)$change_only === 1){
+      #RECURRENCE-ID for edited event
       $newVCalendar = $revent->expand(new DateTime(date('Y-m-d H:i:s', $value->starts)), new DateTime(date('Y-m-d H:i:s', $value->ends)));
-      $newVCalendar = $newVCalendar->serialize();
-      dpm('#--#');
-      dpm($newVCalendar);
-      dpm('#--#');
-      dpm($revent->serialize());
+      $newVCalendar->VEVENT->SUMMARY = $value->summary;
+      $newVCalendar->VEVENT->DESCRIPTION = $value->type;
+      if($value->student){
+        $newVCalendar->VEVENT->ATTENDEE = $value->student_mail;
+        $newVCalendar->VEVENT->ATTENDEE['EMAIL'] = $value->student_mail;
+        $newVCalendar->VEVENT->ATTENDEE['CN'] = $value->student_name;
+        $newVCalendar->VEVENT->ATTENDEE['ID'] = $value->student;
+      } 
 
-      /*
       #extract EVENT from readed CALENDAR
       $event = preg_split("/(BEGIN:VEVENT)/", $revent->serialize(), -1, PREG_SPLIT_OFFSET_CAPTURE);
-      #RECURRENCE-ID for edited event
-      $vevent->VEVENT->add('RECURRENCE-ID', new \DateTime(date('Y-m-d H:i:s', $value->starts)));
       #get only the event from new (edited one) calendar
-      preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $vevent->serialize(), $vevent);
+      preg_match("'BEGIN:VEVENT(.*?)END:VEVENT'si", $newVCalendar->serialize(), $newVCalendar);
       #add VCALENDAR begin and edited new event
-      $allConcat = (string)$event[0][0] . "\n" . $vevent[0];
-
+      $allConcat = (string)$event[0][0] . "\n" . $newVCalendar[0];
       #add others event and changes
       foreach($event as $i => $vcalendar) {
         if($i == 0 || $i == 1) continue;
-        $allConcat .= "\n\nBEGIN:VEVENT" . (string)$vcalendar[0];
+        $allConcat .= "\n\nBEGIN:VEVENT" . (string)$vcalendar[0] . "\n";
       }
-
       #add VCALENDAR end
       $allConcat .= "\nBEGIN:VEVENT" . (string)$event[1][0];
+      /*
+      #RECURRENCE-ID for edited event
+      $vevent->VEVENT->add('RECURRENCE-ID', new \DateTime(date('Y-m-d H:i:s', $value->starts)));
       */
     } 
     #change all the repeated events
     else {
-      $newVCalendar = $vevent->serialize();
+      $allConcat = $vevent->serialize();
     }
     /*--------------------------------------*/
 
       #if changes the group, delete (does't work otherway with ical) the old event and create a new one
       if($object->calendarid !== $value->calendarid){
         $CalDAV->deleteCalendarObject(array($object->calendarid,0), $object->uri);
-        $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $newVCalendar);
+        $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $allConcat);
       }
       #make changes to db with new values added to event object
       else{
-        $response = $CalDAV->updateCalendarObject(array($object->calendarid,1), $object->uri, $newVCalendar);
+        $response = $CalDAV->updateCalendarObject(array($object->calendarid,1), $object->uri, $allConcat);
       }
     /*--------------------------------------*/
 
@@ -1406,7 +1322,6 @@ function events_block () {
         '#states' => array(
             'invisible' => array(
                 'select[name="event[end-repeat][row][select]"]' => array('value' => '0'),
-                #'select[name="event[repeat][row][select]"]' => array('value' => '0')
             )
         ),
     );
