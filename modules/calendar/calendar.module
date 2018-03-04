@@ -163,6 +163,10 @@ function calendar_theme () {
 }
 //----------------------------------------------------
 function calendar_session () {
+
+  #dpm('#-#');
+  #dpm(date('Y-m-d H:i:s', 1520050500));
+  #dpm(date('Y-m-d H:i:s', 2145913200));
   global $user;
   module_load_include('inc', 'dav', 'includes/class_extensions');
   $pdo = Database::getConnection();
@@ -270,13 +274,13 @@ function calendar_session () {
   $events = array();
   $filters = array(
     'name' => 'VCALENDAR',
-    'prop-filters' => array(),
+    'prop-filters' => [],
     'comp-filters' => array(
       array(
         'name' => 'VEVENT',
         'is-not-defined' => false,
-        'prop-filters' => array(),
-        'comp-filters' => array(),
+        'prop-filters' => [],
+        'comp-filters' => [],
         'time-range' => array(
           'start' => new DateTime(date('Y-m-d', $date) . '00:00:00', null),
           'end' => new DateTime(date('Y-m-d', $date) . '23:59:59', null),
@@ -290,13 +294,11 @@ function calendar_session () {
     #get events for every calendar.
     foreach($calendars as $calendar){
       $icss = $CalDAV->calendarQuery(array($calendar['id'][0],0), $filters);
-      #if($calendar['id'][0] == 59) dpm($icss);
       #read event data.
       foreach($icss as $i => $ics){
         $rrule = array();
         $event = $CalDAV->getCalendarObject(array($calendar['id'][0],0), $ics);
         $vcalendar = VObject\Reader::read($event['calendardata']);
-
         foreach($vcalendar->VEVENT as  $i => $data) {
           #is a repeted event? (verify first while the repeat date is here).
           if(!empty((string) $data->RRULE)){
@@ -972,8 +974,8 @@ function button_event_save_submit ($form, &$form_state) {
   );
   
   if ($starts > $ends) return drupal_set_message(t('Endtime must be biger than start time'), 'error');
-  $change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
-  #$change_only = 0;
+  #$change_only = $form_state['values']['event']['change-only']['row']['checkbox'];
+  $change_only = 0;
   $value = array('starts' => $starts, 'ends' => $ends);
   $value['type'] = (empty($form_values['nhus']['field']['type'])? 'None': $form_values['nhus']['field']['type']);
   $value['summary'] = (empty($form_values['title']['field']['text'])? false: $form_values['title']['field']['text']);
@@ -1159,15 +1161,15 @@ foreach($vcalendar->VEVENT as $vevent) {
     }
     /*--------------------------------------*/
 
-      #if changes the group, delete (does't work otherway with ical) the old event and create a new one
-      if($object->calendarid !== $value->calendarid){
-        $CalDAV->deleteCalendarObject(array($object->calendarid,0), $object->uri);
-        $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $allConcat);
-      }
-      #make changes to db with new values added to event object
-      else{
-        $response = $CalDAV->updateCalendarObject(array($object->calendarid,1), $object->uri, $allConcat);
-      }
+    #if changes the group, delete (does't work otherway with ical) the old event and create a new one
+    if($object->calendarid !== $value->calendarid){
+      $CalDAV->deleteCalendarObject(array($object->calendarid,0), $object->uri);
+      $response = $CalDAV->createCalendarObject(array($value->calendarid,0), $object->uri, $allConcat);
+    }
+    #make changes to db with new values added to event object
+    else{
+      $response = $CalDAV->updateCalendarObject(array($object->calendarid,1), $object->uri, $allConcat);
+    }
     /*--------------------------------------*/
 
     unset($_SESSION['calendar']);
@@ -1290,6 +1292,7 @@ function events_block () {
         '#options' => array('None', 'Every Week')
     );
 //----------------------------------------------------
+  /*
     $form['event']['change-only']['row']['checkbox'] = array(
         '#title' => t('Change only this event.'),
         '#type' => 'checkbox',
@@ -1298,6 +1301,7 @@ function events_block () {
         '#prefix' => '<tr><td>',
         '#suffix' => '</td></tr>',
     );
+    */
 //----------------------------------------------------
     $form['event']['end-repeat']['row']['select'] = array(
         '#type' => 'select',
