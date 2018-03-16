@@ -757,6 +757,41 @@ function students_create_form ($form, &$form_state, $student = null) {
   return $form;
 }
 //---------------------------------------------------------------------------
+function students_photo_form ($form, &$form_state, $student = null) {
+  $form['students'] = array(
+      '#tree' => true,
+      '#prefix' => '<table id="wrap-photo-student">',
+      '#suffix' => '</table>',
+  );
+  $form['students']['field'] = array(
+      '#prefix' => '<tr>',
+      '#suffix' => '</tr>',
+  );
+  $form['students']['field']['photo'] = array(
+    '#type' => 'file',
+    #'#title' => t('Image'),
+    '#description' => t('Upload a file, allowed extensions: jpg, jpeg, png, gif'),
+    '#prefix' => '<td>',
+    '#suffix' => '</td>',
+  );
+  return $form;
+}
+//---------------------------------------------------------------------------
+function render_create_form ($student = null) {
+  $photo = drupal_get_form('students_photo_form', $student);
+  $create = drupal_get_form('students_create_form', $student);
+  
+  $markup['students']['photo'] = array(
+    '#type' => 'markup',
+    '#markup' => drupal_render($photo),
+  );
+  $markup['students']['create'] = array(
+    '#type' => 'markup',
+    '#markup' => drupal_render($create),
+  );
+  return $markup;
+}
+//---------------------------------------------------------------------------
 function students_disable_submit_no ($form, &$form_state) {
   drupal_goto('/students');
 }
@@ -985,8 +1020,8 @@ function students_menu () {
   );
   $items['students/create'] = array(
     'title' => 'Add entry',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('students_create_form', 2),
+    'page callback' => 'render_create_form',
+    #'page arguments' => array('render_create_form', 2),
     'access callback' => 'user_access',
     'access arguments' => array('view students page'),
     'type' => MENU_LOCAL_TASK,

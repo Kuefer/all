@@ -171,3 +171,9 @@ svg circle:hover{
 fieldset#edit-lessons{
   overflow:hidden;
 }
+#students-create-form {
+  float:right;
+}
+#students-photo-form{
+  float:left;
+}
