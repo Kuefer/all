@@ -129,7 +129,7 @@ function schoolbook_form ($form, &$form_state) {
   $form['schoolbook'] = array (
     '#title' => t('Student'),
     '#type' => 'fieldset',
-    '#collapsible' => true,
+    '#collapsible' => false,
     '#collapsed' => false,
     #'#options' => '<span class="fieldset-options"><a href="#" id="student-edit">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></span>',
     '#prefix' => '<div id="wrap-schoolbook">',
@@ -147,7 +147,7 @@ function schoolbook_form ($form, &$form_state) {
     '#title' => t('Name'),
     '#type' => 'textfield',
     '#attributes' => array('disabled' => true),
-    '#size' => 49,
+    '#size' => 53,
     '#default_value' => $student->student_firstname . ' ' . $student->student_lastname,
     '#prefix' => '<tr><td>',
     '#sufix' => '</td></tr>',
@@ -157,7 +157,7 @@ function schoolbook_form ($form, &$form_state) {
     '#title' => t('Book'),
     '#type' => 'textfield',
     '#attributes' => array('placeholder' => t('None')),
-    '#size' => 49,
+    '#size' => 53,
     '#default_value' => !empty($student->school_book) ? $student->school_book: '',
     '#prefix' => '<tr><td>',
     '#suffix' => '</td></tr>',
@@ -354,7 +354,7 @@ function lessons_form ($form, &$form_state) {
   $form['lessons'] = array (
     '#type' => 'fieldset',
     '#title' =>  t('Welche Themen müssen noch behandelt werden?'),
-    '#collapsible' => true,
+    '#collapsible' => false,
     '#collapsed' => false,
     '#options' => '<span id="new-lesson"></span>',
     '#prefix' => '<div class="wrap-lessons">',
@@ -424,7 +424,7 @@ function chart_form ($form, &$form_state) {
   $form['chart'] = array (
     '#type' => 'fieldset',
     '#title' => t('Chart'),
-    '#collapsible' => true,
+    '#collapsible' => false,
     '#collapsed' => false,
     '#prefix' => '<div id="wrap-chart">',
     '#suffix' => '</div>',
@@ -521,7 +521,7 @@ function mark_form ($node, &$form_state) {
   $form['mark'] = array (
     '#type' => 'fieldset',
     '#title' => t('Mark'),
-    '#collapsible' => true,
+    '#collapsible' => false,
     '#collapsed' => false,
   );
   $form['mark']['table'] = array (
@@ -620,7 +620,7 @@ function catalog_form($form, &$form_state){
   $build['catalog'] = array (
     '#type' => 'fieldset',
     '#title' => t('Catalog'),
-    '#collapsible' => true,
+    '#collapsible' => false,
     '#collapsed' => false,
     '#prefix' => '<div id="catalog-table">',
     '#suffix' => '</div>'
@@ -726,7 +726,7 @@ function remark_form ($node, &$form_state) {
   $form['remark'] = array (
     '#type' => 'fieldset',
     '#title' => t('Remark'),
-    '#collapsible' => true,
+    '#collapsible' => false,
     '#collapsed' => false,
     '#prefix' => '<div class="wrap-remark">',
     '#suffix' => '</div>',
@@ -860,7 +860,7 @@ function remarks_list ($node, &$form_state) {
   $build['remarks'] = array (
     '#type' => 'fieldset',
     '#title' => t('Remarks'),
-    '#collapsible' => true,
+    '#collapsible' => false,
     '#collapsed' => false,
     '#prefix' => '<div id="remarks-table">',
     '#suffix' => '</div>'
